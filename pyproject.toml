@@ -1,0 +1,80 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "causal-lift"
+version = "0.1.0"
+description = "Lightweight, transparent marketing mix models for DTC brands."
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "MIT" }
+authors = [{ name = "Rohan Taneja" }]
+keywords = [
+    "marketing-mix-model",
+    "mmm",
+    "incrementality",
+    "causal-inference",
+    "roas",
+    "marketing-analytics",
+    "dtc",
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Information Analysis",
+]
+dependencies = [
+    "pandas>=2.0",
+    "numpy>=1.24",
+    "statsmodels>=0.14",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",
+    "pytest-cov>=4.0",
+    "ruff>=0.1",
+]
+
+[project.scripts]
+causal-lift = "causal_lift.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/rt23-dev/causal-lift"
+Repository = "https://github.com/rt23-dev/causal-lift"
+Issues = "https://github.com/rt23-dev/causal-lift/issues"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/causal_lift"]
+
+[tool.hatch.build.targets.sdist]
+include = [
+    "src/causal_lift",
+    "tests",
+    "examples",
+    "README.md",
+    "LICENSE",
+    "CHANGELOG.md",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+addopts = "-ra --strict-markers"
+
+[tool.ruff]
+line-length = 100
+target-version = "py39"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "N", "B", "UP"]
+ignore = ["E501"]
