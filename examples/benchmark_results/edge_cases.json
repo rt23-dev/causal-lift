@@ -1,0 +1,87 @@
+{
+  "30_weeks": {
+    "n_obs": 29,
+    "iROAS": {
+      "facebook_S": 101.23047759695415,
+      "ooh_S": 0.826881706591007,
+      "print_S": 4.165820848194476,
+      "search_S": 25.969770941940762,
+      "tv_S": 5.549015542277642
+    },
+    "ci_widths": {
+      "facebook_S": 129.13658214491053,
+      "ooh_S": 1.3557697349903468,
+      "print_S": 24.355012481719296,
+      "search_S": 150.8512044718136,
+      "tv_S": 7.465664883089257
+    },
+    "warnings": [
+      "\u26a0\ufe0f Identification assumption: this model assumes spend variation is budget-driven (exogenous to same-day demand). Algorithmic bidding (Meta Advantage+, Google Smart Bidding) violates this \u2014 spend will be correlated with unobserved demand shocks, biasing iROAS upward. Budget holdout experiments or geo randomisation provide stronger causal identification. Use these estimates as directional signals, not exact truths."
+    ]
+  },
+  "perfect_collinearity": {
+    "iROAS": {
+      "facebook_S": 31.11398064564571,
+      "fb_clone": 31.113980975247983,
+      "ooh_S": 0.6339143590163234,
+      "print_S": 10.2905823957777,
+      "search_S": 84.6981915594204,
+      "tv_S": 7.056418916216923
+    },
+    "vif": {
+      "facebook_S": Infinity,
+      "fb_clone": Infinity,
+      "ooh_S": 1.071485262021049,
+      "print_S": 1.0753768883074577,
+      "search_S": 1.5362234349923611,
+      "tv_S": 1.0662192923218208
+    },
+    "warnings": [
+      "\u26a0\ufe0f Identification assumption: this model assumes spend variation is budget-driven (exogenous to same-day demand). Algorithmic bidding (Meta Advantage+, Google Smart Bidding) violates this \u2014 spend will be correlated with unobserved demand shocks, biasing iROAS upward. Budget holdout experiments or geo randomisation provide stronger causal identification. Use these estimates as directional signals, not exact truths.",
+      "Durbin-Watson=1.22 suggests positive autocorrelation in residuals. HAC SEs partially correct for this, but consider longer differencing windows or a lag-augmented model.",
+      "High multicollinearity detected for: facebook_S, fb_clone (VIF > 10). These channels have correlated spend series \u2014 their individual iROAS estimates are not reliably identified. Run budget experiments with deliberate, independent variation."
+    ]
+  },
+  "margin_recs": {
+    "m=0.1": {
+      "breakeven": 10.0,
+      "recs": {
+        "facebook_S": "SCALE",
+        "ooh_S": "CUT",
+        "print_S": "HOLD",
+        "search_S": "SCALE",
+        "tv_S": "CUT"
+      }
+    },
+    "m=0.3": {
+      "breakeven": 3.33,
+      "recs": {
+        "facebook_S": "SCALE",
+        "ooh_S": "CUT",
+        "print_S": "HOLD",
+        "search_S": "SCALE",
+        "tv_S": "SCALE"
+      }
+    },
+    "m=0.5": {
+      "breakeven": 2.0,
+      "recs": {
+        "facebook_S": "SCALE",
+        "ooh_S": "CUT",
+        "print_S": "SCALE",
+        "search_S": "SCALE",
+        "tv_S": "SCALE"
+      }
+    }
+  },
+  "missing_week": {
+    "n_obs": 196,
+    "iROAS": {
+      "facebook_S": 63.60619447876166,
+      "ooh_S": 0.8089693524579624,
+      "print_S": 10.602976310218477,
+      "search_S": 86.99357671959152,
+      "tv_S": 6.562453772688149
+    }
+  }
+}

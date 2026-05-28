@@ -53,7 +53,7 @@ def test_recommendations_are_valid_labels():
     data = generate_synthetic_data(n_days=90, seed=42)
     result = analyze(data.spend_df, data.sales_df)
     for ch in result.channels:
-        assert ch.recommendation in {"SCALE", "HOLD", "CUT"}
+        assert ch.recommendation in {"SCALE", "HOLD", "CUT", "INCONCLUSIVE"}
 
 
 def test_high_vif_forces_hold():
@@ -103,7 +103,7 @@ def test_too_few_observations_raises_or_warns():
     data = generate_synthetic_data(n_days=15, seed=42)
     # Should still run but warn
     result = analyze(data.spend_df, data.sales_df)
-    assert any("days of overlapping data" in w for w in result.warnings)
+    assert any("periods of overlapping data" in w for w in result.warnings)
 
 
 def test_can_instantiate_model_directly():

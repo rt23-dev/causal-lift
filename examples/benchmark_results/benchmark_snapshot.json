@@ -1,0 +1,351 @@
+{
+  "headline": {
+    "n_weeks": 206,
+    "r_squared": 0.477890383862692,
+    "durbin_watson": 1.2188614332415946,
+    "channels": [
+      {
+        "channel": "facebook_S",
+        "iROAS": 62.22796162043109,
+        "raw_coef": 62.22796162043109,
+        "ci": [
+          24.53625061142965,
+          99.91967262943253
+        ],
+        "vif": 1.0473523814015138,
+        "rec": "SCALE"
+      },
+      {
+        "channel": "ooh_S",
+        "iROAS": 0.6339143589816747,
+        "raw_coef": 0.6339143589816747,
+        "ci": [
+          -0.28531710299230595,
+          1.5531458209556552
+        ],
+        "vif": 1.071485262021049,
+        "rec": "CUT"
+      },
+      {
+        "channel": "print_S",
+        "iROAS": 10.290582395869356,
+        "raw_coef": 10.290582395869356,
+        "ci": [
+          1.6487661448599304,
+          18.93239864687878
+        ],
+        "vif": 1.0753768883074577,
+        "rec": "HOLD"
+      },
+      {
+        "channel": "search_S",
+        "iROAS": 84.69819155918607,
+        "raw_coef": 84.69819155918607,
+        "ci": [
+          60.094172879015844,
+          109.3022102393563
+        ],
+        "vif": 1.5362234349923616,
+        "rec": "SCALE"
+      },
+      {
+        "channel": "tv_S",
+        "iROAS": 7.05641891615689,
+        "raw_coef": 7.05641891615689,
+        "ci": [
+          4.360318818365517,
+          9.752519013948262
+        ],
+        "vif": 1.0662192923218217,
+        "rec": "SCALE"
+      }
+    ],
+    "warnings": [
+      "\u26a0\ufe0f Identification assumption: this model assumes spend variation is budget-driven (exogenous to same-day demand). Algorithmic bidding (Meta Advantage+, Google Smart Bidding) violates this \u2014 spend will be correlated with unobserved demand shocks, biasing iROAS upward. Budget holdout experiments or geo randomisation provide stronger causal identification. Use these estimates as directional signals, not exact truths.",
+      "Durbin-Watson=1.22 suggests positive autocorrelation in residuals. HAC SEs partially correct for this, but consider longer differencing windows or a lag-augmented model."
+    ]
+  },
+  "recovery_summary": [
+    {
+      "channel": "facebook",
+      "truth": 2.0,
+      "mean_est": 1.9825157915176246,
+      "median_est": 1.9873617940016883,
+      "bias": -0.01748420848237542,
+      "rel_err": 0.048737191053864565,
+      "sd_est": 0.12194402134838613,
+      "ci_coverage_95": 0.945,
+      "mean_vif": 1.0591290261722275
+    },
+    {
+      "channel": "google",
+      "truth": 4.5,
+      "mean_est": 4.581544641737165,
+      "median_est": 4.576143822602179,
+      "bias": 0.0815446417371648,
+      "rel_err": 0.04594852029302627,
+      "sd_est": 0.25447633979518475,
+      "ci_coverage_95": 0.905,
+      "mean_vif": 1.1254479004584714
+    },
+    {
+      "channel": "tiktok",
+      "truth": 0.8,
+      "mean_est": 0.8960503968694147,
+      "median_est": 0.8025084812687662,
+      "bias": 0.09605039686941463,
+      "rel_err": 0.5966195597930254,
+      "sd_est": 0.6027225919770153,
+      "ci_coverage_95": 0.92,
+      "mean_vif": 1.057984217755192
+    }
+  ],
+  "bootstrap_summary": [
+    {
+      "channel": "facebook_S",
+      "mean": 62.176680163774726,
+      "median": 58.75350213990717,
+      "std": 17.300421600663267,
+      "p2.5": 32.400437498095805,
+      "p97.5": 96.56287176340066,
+      "cv": 0.2782461455821311
+    },
+    {
+      "channel": "ooh_S",
+      "mean": 0.6601203570814046,
+      "median": 0.6540148953522831,
+      "std": 0.45198959091914265,
+      "p2.5": -0.11742541749856839,
+      "p97.5": 1.5392367689766309,
+      "cv": 0.6847078507282033
+    },
+    {
+      "channel": "print_S",
+      "mean": 9.919566717763407,
+      "median": 10.046766519993508,
+      "std": 4.821133806329484,
+      "p2.5": 0.5644857997648143,
+      "p97.5": 18.821053531506077,
+      "cv": 0.48602262009045877
+    },
+    {
+      "channel": "search_S",
+      "mean": 84.5234083625417,
+      "median": 83.1043649635051,
+      "std": 13.341814243018714,
+      "p2.5": 61.16908032475234,
+      "p97.5": 110.97196260554067,
+      "cv": 0.15784756556186647
+    },
+    {
+      "channel": "tv_S",
+      "mean": 7.193552517803862,
+      "median": 7.1088303299843725,
+      "std": 1.555571499524049,
+      "p2.5": 4.6855464708233665,
+      "p97.5": 10.132206402261122,
+      "cv": 0.21624524123151231
+    }
+  ],
+  "leave_one_out_first_rows": [
+    {
+      "dropped": "<none>",
+      "facebook_S": 62.22796162043109,
+      "ooh_S": 0.6339143589816747,
+      "print_S": 10.290582395869356,
+      "search_S": 84.69819155918607,
+      "tv_S": 7.05641891615689
+    },
+    {
+      "dropped": "tv_S",
+      "facebook_S": 72.0955209432641,
+      "ooh_S": 0.7102185470051074,
+      "print_S": 10.250569945400592,
+      "search_S": 95.32962338967067,
+      "tv_S": NaN
+    },
+    {
+      "dropped": "ooh_S",
+      "facebook_S": 63.57564781396773,
+      "ooh_S": NaN,
+      "print_S": 10.930000766236166,
+      "search_S": 91.99834160376327,
+      "tv_S": 7.063518945321189
+    },
+    {
+      "dropped": "print_S",
+      "facebook_S": 67.88819751459647,
+      "ooh_S": 0.7815606629381154,
+      "print_S": NaN,
+      "search_S": 92.6421641194649,
+      "tv_S": 7.090385277962558
+    },
+    {
+      "dropped": "facebook_S",
+      "facebook_S": NaN,
+      "ooh_S": 0.544206389881584,
+      "print_S": 15.056615881865557,
+      "search_S": 93.11320089363403,
+      "tv_S": 8.196608812206204
+    },
+    {
+      "dropped": "search_S",
+      "facebook_S": 50.4640658448766,
+      "ooh_S": 0.48483896974558155,
+      "print_S": 16.84963178677919,
+      "search_S": NaN,
+      "tv_S": 8.945758146373008
+    }
+  ],
+  "diagnostic": {
+    "vifs": {
+      "facebook_S": 5899.768452642743,
+      "ooh_S": 1.0781187828882295,
+      "print_S": 1.0859697230172252,
+      "search_S": 1.537414657928281,
+      "shadow_fb": 5898.059585925015,
+      "tv_S": 1.0692866145574622
+    },
+    "durbin_watson": 1.2195357773465993,
+    "r_squared": 0.47828383179157563,
+    "warnings_flagged_collinearity": true,
+    "warnings_flagged_autocorr": true
+  },
+  "edge_cases": {
+    "30_weeks": {
+      "n_obs": 29,
+      "iROAS": {
+        "facebook_S": 101.23047759695415,
+        "ooh_S": 0.826881706591007,
+        "print_S": 4.165820848194476,
+        "search_S": 25.969770941940762,
+        "tv_S": 5.549015542277642
+      },
+      "ci_widths": {
+        "facebook_S": 129.13658214491053,
+        "ooh_S": 1.3557697349903468,
+        "print_S": 24.355012481719296,
+        "search_S": 150.8512044718136,
+        "tv_S": 7.465664883089257
+      },
+      "warnings": [
+        "\u26a0\ufe0f Identification assumption: this model assumes spend variation is budget-driven (exogenous to same-day demand). Algorithmic bidding (Meta Advantage+, Google Smart Bidding) violates this \u2014 spend will be correlated with unobserved demand shocks, biasing iROAS upward. Budget holdout experiments or geo randomisation provide stronger causal identification. Use these estimates as directional signals, not exact truths."
+      ]
+    },
+    "perfect_collinearity": {
+      "iROAS": {
+        "facebook_S": 31.11398064564571,
+        "fb_clone": 31.113980975247983,
+        "ooh_S": 0.6339143590163234,
+        "print_S": 10.2905823957777,
+        "search_S": 84.6981915594204,
+        "tv_S": 7.056418916216923
+      },
+      "vif": {
+        "facebook_S": Infinity,
+        "fb_clone": Infinity,
+        "ooh_S": 1.071485262021049,
+        "print_S": 1.0753768883074577,
+        "search_S": 1.5362234349923611,
+        "tv_S": 1.0662192923218208
+      },
+      "warnings": [
+        "\u26a0\ufe0f Identification assumption: this model assumes spend variation is budget-driven (exogenous to same-day demand). Algorithmic bidding (Meta Advantage+, Google Smart Bidding) violates this \u2014 spend will be correlated with unobserved demand shocks, biasing iROAS upward. Budget holdout experiments or geo randomisation provide stronger causal identification. Use these estimates as directional signals, not exact truths.",
+        "Durbin-Watson=1.22 suggests positive autocorrelation in residuals. HAC SEs partially correct for this, but consider longer differencing windows or a lag-augmented model.",
+        "High multicollinearity detected for: facebook_S, fb_clone (VIF > 10). These channels have correlated spend series \u2014 their individual iROAS estimates are not reliably identified. Run budget experiments with deliberate, independent variation."
+      ]
+    },
+    "margin_recs": {
+      "m=0.1": {
+        "breakeven": 10.0,
+        "recs": {
+          "facebook_S": "SCALE",
+          "ooh_S": "CUT",
+          "print_S": "HOLD",
+          "search_S": "SCALE",
+          "tv_S": "CUT"
+        }
+      },
+      "m=0.3": {
+        "breakeven": 3.33,
+        "recs": {
+          "facebook_S": "SCALE",
+          "ooh_S": "CUT",
+          "print_S": "HOLD",
+          "search_S": "SCALE",
+          "tv_S": "SCALE"
+        }
+      },
+      "m=0.5": {
+        "breakeven": 2.0,
+        "recs": {
+          "facebook_S": "SCALE",
+          "ooh_S": "CUT",
+          "print_S": "SCALE",
+          "search_S": "SCALE",
+          "tv_S": "SCALE"
+        }
+      }
+    },
+    "missing_week": {
+      "n_obs": 196,
+      "iROAS": {
+        "facebook_S": 63.60619447876166,
+        "ooh_S": 0.8089693524579624,
+        "print_S": 10.602976310218477,
+        "search_S": 86.99357671959152,
+        "tv_S": 6.562453772688149
+      }
+    }
+  },
+  "peer_comparison": [
+    {
+      "estimator": "causal-lift (OLS+HAC)",
+      "facebook_S": 62.22796162043109,
+      "ooh_S": 0.6339143589816747,
+      "print_S": 10.290582395869356,
+      "search_S": 84.69819155918607,
+      "tv_S": 7.05641891615689
+    },
+    {
+      "estimator": "sklearn OLS (sanity check)",
+      "facebook_S": 62.22796162066058,
+      "ooh_S": 0.6339143590098502,
+      "print_S": 10.290582395935644,
+      "search_S": 84.698191559174,
+      "tv_S": 7.056418916166308
+    },
+    {
+      "estimator": "Ridge(alpha=1)",
+      "facebook_S": 62.88022251129205,
+      "ooh_S": 0.669273721270757,
+      "print_S": 10.583351259483003,
+      "search_S": 84.85507180584315,
+      "tv_S": 7.104221386654488
+    },
+    {
+      "estimator": "Ridge(alpha=100)",
+      "facebook_S": 88.96590979389516,
+      "ooh_S": 2.083325062578581,
+      "print_S": 22.291215791044475,
+      "search_S": 91.13265905754425,
+      "tv_S": 9.015839068671974
+    },
+    {
+      "estimator": "Ridge(alpha=10000)",
+      "facebook_S": 107.01728661690593,
+      "ooh_S": 3.0510449039449283,
+      "print_S": 30.2683559112632,
+      "search_S": 96.05541712670434,
+      "tv_S": 10.31679453858812
+    },
+    {
+      "estimator": "RidgeCV (alpha*=0.01)",
+      "facebook_S": 62.280517578125,
+      "ooh_S": 0.513916015625,
+      "print_S": 10.381256103515625,
+      "search_S": 84.7669677734375,
+      "tv_S": 7.3699951171875
+    }
+  ]
+}

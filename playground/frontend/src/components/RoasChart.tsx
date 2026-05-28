@@ -22,6 +22,7 @@ const REC_COLORS: Record<string, string> = {
   SCALE: "#10b981",
   HOLD: "#f59e0b",
   CUT: "#ef4444",
+  INCONCLUSIVE: "#94a3b8",
 };
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any

@@ -9,6 +9,11 @@ from typing import List, Optional, Tuple
 import pandas as pd
 
 
+# Implausibility thresholds used for safety gates.
+ALWAYS_ON_THRESHOLD = 0.85       # channels active in >85% of periods are "always-on"
+AGGREGATE_SHARE_CEILING = 0.50   # if Σ(iROAS·spend)/revenue exceeds this, the model is hallucinating
+
+
 @dataclass
 class ChannelResult:
     """Per-channel incrementality result."""
@@ -19,11 +24,12 @@ class ChannelResult:
     incremental_roas: float         # causal OLS coefficient ($ revenue per $ spend)
     incremental_revenue: float
     confidence_interval: List[float]  # [lower_95, upper_95]
-    recommendation: str             # SCALE / HOLD / CUT (margin-aware)
+    recommendation: str             # SCALE / HOLD / CUT / INCONCLUSIVE (margin-aware)
     recommendation_reason: str
     model_fit: float = 0.0          # global model R²
     vif_score: Optional[float] = None
     raw_coef: float = 0.0           # unclipped OLS coefficient
+    nonzero_share: float = 1.0      # fraction of periods this channel had spend > 0
 
     def to_dict(self) -> dict:
         return {
@@ -38,6 +44,7 @@ class ChannelResult:
             "model_fit": round(self.model_fit, 3),
             "vif_score": round(self.vif_score, 1) if self.vif_score is not None else None,
             "raw_coef": round(self.raw_coef, 3),
+            "nonzero_share": round(self.nonzero_share, 2),
         }
 
 
@@ -54,6 +61,8 @@ class AnalysisResult:
     contribution_margin: float
     breakeven_roas: float
     durbin_watson: float = 2.0
+    cadence: str = "daily"                       # "daily", "weekly", or "irregular"
+    implied_incremental_share: float = 0.0       # Σ(iROAS·spend) / total_revenue
     warnings: List[str] = field(default_factory=list)
 
     def to_dict(self) -> dict:
@@ -67,6 +76,8 @@ class AnalysisResult:
             "contribution_margin": self.contribution_margin,
             "breakeven_roas": round(self.breakeven_roas, 2),
             "durbin_watson": round(self.durbin_watson, 2),
+            "cadence": self.cadence,
+            "implied_incremental_share": round(self.implied_incremental_share, 3),
             "warnings": self.warnings,
         }
 
@@ -78,24 +89,25 @@ class AnalysisResult:
         """Plain-text summary suitable for printing (ASCII-only)."""
         lines = [
             f"causal-lift analysis  |  method: {self.method_used}",
-            f"  observations: {self.observations}  |  R-squared: {self.r_squared:.3f}  |  DW: {self.durbin_watson:.2f}",
+            f"  observations: {self.observations} ({self.cadence})  |  R-squared: {self.r_squared:.3f}  |  DW: {self.durbin_watson:.2f}",
             f"  contribution margin: {self.contribution_margin:.0%}  ->  breakeven iROAS = {self.breakeven_roas:.2f}x",
+            f"  aggregate implied incremental share: {self.implied_incremental_share:.0%} of revenue",
             "",
-            f"  {'channel':<14}{'iROAS':>8}{'CI95':>20}{'VIF':>8}{'rec':>8}",
-            f"  {'-' * 58}",
+            f"  {'channel':<14}{'iROAS':>8}{'CI95':>20}{'VIF':>8}{'on%':>6}{'rec':>14}",
+            f"  {'-' * 70}",
         ]
         for ch in self.channels:
             ci = f"[{ch.confidence_interval[0]:.2f}, {ch.confidence_interval[1]:.2f}]"
             vif = f"{ch.vif_score:.1f}" if ch.vif_score is not None else "-"
+            on_pct = f"{ch.nonzero_share:.0%}"
             lines.append(
-                f"  {ch.channel:<14}{ch.incremental_roas:>7.2f}x{ci:>20}{vif:>8}{ch.recommendation:>8}"
+                f"  {ch.channel:<14}{ch.incremental_roas:>7.2f}x{ci:>20}{vif:>8}{on_pct:>6}{ch.recommendation:>14}"
             )
         if self.warnings:
             lines.append("")
             lines.append("Warnings:")
             for w in self.warnings:
-                clean = w.replace("⚠️", "!").strip()  # warning sign emoji
-                # Strip any other non-ASCII for terminal safety
+                clean = w.replace("⚠️", "!").strip()
                 clean = clean.encode("ascii", errors="replace").decode("ascii")
                 lines.append(f"  * {clean}")
         return "\n".join(lines)
@@ -119,16 +131,21 @@ class BaseModel(ABC):
         ci: List[float],
         breakeven_roas: float,
         vif: Optional[float] = None,
+        nonzero_share: float = 1.0,
     ) -> Tuple[str, str]:
         """
-        Margin-aware recommendation logic.
+        Margin-aware recommendation with safety gates.
 
-        SCALE  — iROAS ≥ breakeven AND CI lower bound ≥ 75% of breakeven.
-        CUT    — iROAS < 85% of breakeven AND CI upper bound < breakeven.
-        HOLD   — everything else.
+        Gates (any one fires → INCONCLUSIVE / HOLD):
+        - VIF > 10                  → HOLD (estimate not identified)
+        - nonzero_share > 0.85 AND
+          would-be SCALE            → INCONCLUSIVE (always-on, likely baseline confound)
 
-        High VIF (> 10) overrides everything with HOLD because the coefficient
-        is not reliably identified under multicollinearity.
+        Labels:
+        - SCALE          iROAS >= breakeven AND CI lower >= 75% of breakeven
+        - CUT            iROAS < 85% of breakeven AND CI upper < breakeven
+        - HOLD           otherwise
+        - INCONCLUSIVE   estimate exists but cannot be acted on safely
         """
         lower, upper = ci
         be = breakeven_roas
@@ -144,7 +161,20 @@ class BaseModel(ABC):
         if vif is not None and vif > 5:
             vif_caveat = f" (moderate collinearity VIF={vif:.1f} — treat with caution)"
 
-        if incremental_roas >= be and lower >= be * 0.75:
+        # Always-on confound check: SCALE on a >85%-on channel is the most dangerous
+        # output the library can produce — same-day OLS can't separate its effect
+        # from baseline / trend co-movement.
+        would_be_scale = incremental_roas >= be and lower >= be * 0.75
+        if nonzero_share > ALWAYS_ON_THRESHOLD and would_be_scale:
+            return (
+                "INCONCLUSIVE",
+                f"Channel runs in {nonzero_share:.0%} of periods (>85% always-on). "
+                f"Same-day regression cannot separate its effect from baseline/trend "
+                f"co-movement, so the {incremental_roas:.1f}x estimate is likely inflated. "
+                f"A budget holdout (pause spend in 2-3 random weeks) would give a credible estimate.",
+            )
+
+        if would_be_scale:
             return (
                 "SCALE",
                 f"iROAS {incremental_roas:.1f}x is above your {be:.1f}x breakeven and the CI "

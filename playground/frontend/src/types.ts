@@ -1,4 +1,4 @@
-export type Recommendation = "SCALE" | "HOLD" | "CUT";
+export type Recommendation = "SCALE" | "HOLD" | "CUT" | "INCONCLUSIVE";
 
 export interface ChannelResult {
   channel: string;

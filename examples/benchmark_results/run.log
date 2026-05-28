@@ -1,0 +1,125 @@
+========================================================================
+causal-lift benchmark on Robyn dt_simulated_weekly + synthetic DGP
+========================================================================
+
+[Robyn] 208 weeks, channels: ['facebook_S', 'ooh_S', 'print_S', 'search_S', 'tv_S']
+causal-lift analysis  |  method: RegressionMMM (multivariate OLS, trend + DOW controls, HAC/Newey-West SEs)
+  observations: 206  |  R-squared: 0.478  |  DW: 1.22
+  contribution margin: 30%  ->  breakeven iROAS = 3.33x
+
+  channel          iROAS                CI95     VIF     rec
+  ----------------------------------------------------------
+  facebook_S      62.23x      [24.54, 99.92]     1.0   SCALE
+  ooh_S            0.63x       [-0.29, 1.55]     1.1     CUT
+  print_S         10.29x       [1.65, 18.93]     1.1    HOLD
+  search_S        84.70x     [60.09, 109.30]     1.5   SCALE
+  tv_S             7.06x        [4.36, 9.75]     1.1   SCALE
+
+Warnings:
+  * ! Identification assumption: this model assumes spend variation is budget-driven (exogenous to same-day demand). Algorithmic bidding (Meta Advantage+, Google Smart Bidding) violates this ? spend will be correlated with unobserved demand shocks, biasing iROAS upward. Budget holdout experiments or geo randomisation provide stronger causal identification. Use these estimates as directional signals, not exact truths.
+  * Durbin-Watson=1.22 suggests positive autocorrelation in residuals. HAC SEs partially correct for this, but consider longer differencing windows or a lag-augmented model.
+
+[Recovery / coverage]
+  channel  truth  mean_est  median_est      bias  rel_err   sd_est  ci_coverage_95  mean_vif
+facebook    2.0  1.982516    1.987362 -0.017484 0.048737 0.121944           0.945  1.059129
+  google    4.5  4.581545    4.576144  0.081545 0.045949 0.254476           0.905  1.125448
+  tiktok    0.8  0.896050    0.802508  0.096050 0.596620 0.602723           0.920  1.057984
+
+[Bootstrap] 100 resamples, 0 failed
+    channel      mean    median       std      p2.5      p97.5       cv
+facebook_S 62.176680 58.753502 17.300422 32.400437  96.562872 0.278246
+     ooh_S  0.660120  0.654015  0.451990 -0.117425   1.539237 0.684708
+   print_S  9.919567 10.046767  4.821134  0.564486  18.821054 0.486023
+  search_S 84.523408 83.104365 13.341814 61.169080 110.971963 0.157848
+      tv_S  7.193553  7.108830  1.555571  4.685546  10.132206 0.216245
+
+[Leave-one-out raw coefficients]
+    dropped  facebook_S    ooh_S   print_S  search_S     tv_S
+    <none>   62.227962 0.633914 10.290582 84.698192 7.056419
+      tv_S   72.095521 0.710219 10.250570 95.329623      NaN
+     ooh_S   63.575648      NaN 10.930001 91.998342 7.063519
+   print_S   67.888198 0.781561       NaN 92.642164 7.090385
+facebook_S         NaN 0.544206 15.056616 93.113201 8.196609
+  search_S   50.464066 0.484839 16.849632       NaN 8.945758
+
+[Diagnostic test]
+ {
+  "vifs": {
+    "facebook_S": 5899.768452642743,
+    "ooh_S": 1.0781187828882295,
+    "print_S": 1.0859697230172252,
+    "search_S": 1.537414657928281,
+    "shadow_fb": 5898.059585925015,
+    "tv_S": 1.0692866145574622
+  },
+  "durbin_watson": 1.2195357773465993,
+  "r_squared": 0.47828383179157563,
+  "warnings_flagged_collinearity": true,
+  "warnings_flagged_autocorr": true
+}
+
+[Edge cases]
+ {
+  "30_weeks": {
+    "n_obs": 29,
+    "iROAS": {
+      "facebook_S": 101.23047759695415,
+      "ooh_S": 0.826881706591007,
+      "print_S": 4.165820848194476,
+      "search_S": 25.969770941940762,
+      "tv_S": 5.549015542277642
+    },
+    "ci_widths": {
+      "facebook_S": 129.13658214491053,
+      "ooh_S": 1.3557697349903468,
+      "print_S": 24.355012481719296,
+      "search_S": 150.8512044718136,
+      "tv_S": 7.465664883089257
+    },
+    "warnings": [
+      "\u26a0\ufe0f Identification assumption: this model assumes spend variation is budget-driven (exogenous to same-day demand). Algorithmic bidding (Meta Advantage+, Google Smart Bidding) violates this \u2014 spend will be correlated with unobserved demand shocks, biasing iROAS upward. Budget holdout experiments or geo randomisation provide stronger causal identification. Use these estimates as directional signals, not exact truths."
+    ]
+  },
+  "perfect_collinearity": {
+    "iROAS": {
+      "facebook_S": 31.11398064564571,
+      "fb_clone": 31.113980975247983,
+      "ooh_S": 0.6339143590163234,
+      "print_S": 10.2905823957777,
+      "search_S": 84.6981915594204,
+      "tv_S": 7.056418916216923
+    },
+    "vif": {
+      "facebook_S": Infinity,
+      "fb_clone": Infinity,
+      "ooh_S": 1.071485262021049,
+      "print_S": 1.0753768883074577,
+      "search_S": 1.5362234349923611,
+      "tv_S": 1.0662192923218208
+    },
+    "warnings": [
+      "\u26a0\ufe0f Identification assumption: this model assumes spend variation is budget-driven (exogenous to same-day demand). Algorithmic bidding (Meta Advantage+, Google Smart Bidding) violates this \u2014 spend will be correlated with unobserved demand shocks, biasing iROAS upward. Budget holdout experiments or geo randomisation provide stronger causal identification. Use these estimates as directional signals, not exact truths.",
+      "Durbin-Watson=1.22 suggests positive autocorrelation in residuals. HAC SEs partially correct for this, but consider longer differencing windows or a lag-augmented model.",
+      "High multicollinearity detected for: facebook_S, fb_clone (VIF > 10). These channels have correlated spend series \u2014 their individual iROAS estimates are not reliably identified. Run budget experiments with deliberate, independent variation."
+    ]
+  },
+  "margin_recs": {
+    "m=0.1": {
+      "breakeven": 10.0,
+      "recs": {
+        "facebook_S": "SCALE",
+        "ooh_S": "CUT",
+        "print_S": "HOLD",
+        "search_S": "SCALE",
+        "tv
+
+[Peer comparison]
+                  estimator  facebook_S    ooh_S   print_S  search_S      tv_S
+     causal-lift (OLS+HAC)   62.227962 0.633914 10.290582 84.698192  7.056419
+sklearn OLS (sanity check)   62.227962 0.633914 10.290582 84.698192  7.056419
+            Ridge(alpha=1)   62.880223 0.669274 10.583351 84.855072  7.104221
+          Ridge(alpha=100)   88.965910 2.083325 22.291216 91.132659  9.015839
+        Ridge(alpha=10000)  107.017287 3.051045 30.268356 96.055417 10.316795
+     RidgeCV (alpha*=0.01)   62.280518 0.513916 10.381256 84.766968  7.369995
+
+Wrote all artefacts to C:\Users\Rohan\incrementaliq\examples\benchmark_results

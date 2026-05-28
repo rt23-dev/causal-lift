@@ -18,6 +18,11 @@ const REC_STYLES = {
     accent: "bg-red-500",
     border: "border-red-200",
   },
+  INCONCLUSIVE: {
+    badge: "bg-slate-100 text-slate-600 border border-slate-300",
+    accent: "bg-slate-400",
+    border: "border-slate-200",
+  },
 };
 
 const CHANNEL_COLORS: Record<string, string> = {

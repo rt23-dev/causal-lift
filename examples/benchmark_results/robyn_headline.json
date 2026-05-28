@@ -1,0 +1,66 @@
+{
+  "n_weeks": 206,
+  "r_squared": 0.477890383862692,
+  "durbin_watson": 1.2188614332415946,
+  "channels": [
+    {
+      "channel": "facebook_S",
+      "iROAS": 62.22796162043109,
+      "raw_coef": 62.22796162043109,
+      "ci": [
+        24.53625061142965,
+        99.91967262943253
+      ],
+      "vif": 1.0473523814015138,
+      "rec": "SCALE"
+    },
+    {
+      "channel": "ooh_S",
+      "iROAS": 0.6339143589816747,
+      "raw_coef": 0.6339143589816747,
+      "ci": [
+        -0.28531710299230595,
+        1.5531458209556552
+      ],
+      "vif": 1.071485262021049,
+      "rec": "CUT"
+    },
+    {
+      "channel": "print_S",
+      "iROAS": 10.290582395869356,
+      "raw_coef": 10.290582395869356,
+      "ci": [
+        1.6487661448599304,
+        18.93239864687878
+      ],
+      "vif": 1.0753768883074577,
+      "rec": "HOLD"
+    },
+    {
+      "channel": "search_S",
+      "iROAS": 84.69819155918607,
+      "raw_coef": 84.69819155918607,
+      "ci": [
+        60.094172879015844,
+        109.3022102393563
+      ],
+      "vif": 1.5362234349923616,
+      "rec": "SCALE"
+    },
+    {
+      "channel": "tv_S",
+      "iROAS": 7.05641891615689,
+      "raw_coef": 7.05641891615689,
+      "ci": [
+        4.360318818365517,
+        9.752519013948262
+      ],
+      "vif": 1.0662192923218217,
+      "rec": "SCALE"
+    }
+  ],
+  "warnings": [
+    "\u26a0\ufe0f Identification assumption: this model assumes spend variation is budget-driven (exogenous to same-day demand). Algorithmic bidding (Meta Advantage+, Google Smart Bidding) violates this \u2014 spend will be correlated with unobserved demand shocks, biasing iROAS upward. Budget holdout experiments or geo randomisation provide stronger causal identification. Use these estimates as directional signals, not exact truths.",
+    "Durbin-Watson=1.22 suggests positive autocorrelation in residuals. HAC SEs partially correct for this, but consider longer differencing windows or a lag-augmented model."
+  ]
+}
