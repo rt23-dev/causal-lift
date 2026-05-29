@@ -69,6 +69,9 @@ class RegressionMMM(BaseModel):
         min_obs: int = 21,
         adstock: str | dict[str, float] | None = "auto",
         adstock_grid: tuple[float, ...] | None = None,
+        inference: str = "hac",
+        n_bootstrap: int = 1000,
+        random_state: int = 0,
     ):
         """
         Parameters
@@ -85,12 +88,28 @@ class RegressionMMM(BaseModel):
         adstock_grid : tuple of floats, optional
             Values searched when `adstock="auto"`.  Defaults to
             (0.0, 0.3, 0.5, 0.7).
+        inference : "hac" | "bootstrap", default "hac"
+            How to compute standard errors and confidence intervals.
+            - "hac": Newey-West heteroskedasticity-and-autocorrelation-
+              consistent SEs (closed-form, fast).
+            - "bootstrap": stationary block bootstrap (Politis-Romano).  Slower
+              but more robust to non-normal residuals and heavy autocorrelation
+              (DW < 1.0).  Block length set automatically.
+        n_bootstrap : int, default 1000
+            Number of bootstrap replicates when `inference="bootstrap"`.
+        random_state : int, default 0
+            Seed for bootstrap resampling.  Pure cosmetic if `inference="hac"`.
         """
         self.min_obs = min_obs
         self.adstock = adstock
         self.adstock_grid = (
             tuple(adstock_grid) if adstock_grid is not None else self.DEFAULT_ADSTOCK_GRID
         )
+        if inference not in {"hac", "bootstrap"}:
+            raise ValueError(f"inference must be 'hac' or 'bootstrap', got {inference!r}")
+        self.inference = inference
+        self.n_bootstrap = int(n_bootstrap)
+        self.random_state = int(random_state)
 
     def fit(
         self,
@@ -165,6 +184,16 @@ class RegressionMMM(BaseModel):
         max_lags = max(1, int(4 * (n / 100) ** (2 / 9)))
         model = sm.OLS(y, X).fit(cov_type="HAC", cov_kwds={"maxlags": max_lags})
 
+        # Optionally replace HAC CIs with stationary bootstrap CIs.
+        bootstrap_cis: dict[str, tuple[float, float]] | None = None
+        if self.inference == "bootstrap":
+            bootstrap_cis = self._stationary_bootstrap_cis(X, y, channels)
+            warnings.append(
+                f"Inference method: stationary block bootstrap "
+                f"({self.n_bootstrap} replicates). CIs replace the HAC closed-form "
+                f"intervals; point estimates are unchanged."
+            )
+
         dw = float(durbin_watson(model.resid))
         if dw < 1.5:
             warnings.append(
@@ -192,7 +221,10 @@ class RegressionMMM(BaseModel):
         channel_results: list[ChannelResult] = []
         for ch in channels:
             raw_coef = float(model.params[ch])
-            ci_low, ci_high = model.conf_int(alpha=0.05).loc[ch]
+            if bootstrap_cis is not None and ch in bootstrap_cis:
+                ci_low, ci_high = bootstrap_cis[ch]
+            else:
+                ci_low, ci_high = model.conf_int(alpha=0.05).loc[ch]
             total_spend = float(daily[ch].sum())
             vif = vif_scores.get(ch)
             share = nonzero_share[ch]
@@ -436,6 +468,69 @@ class RegressionMMM(BaseModel):
                     best_theta = theta
             thetas[target] = best_theta
         return thetas
+
+    def _stationary_bootstrap_cis(
+        self,
+        X: pd.DataFrame,  # noqa: N803
+        y: pd.Series,
+        channels: list[str],
+        alpha: float = 0.05,
+    ) -> dict[str, tuple[float, float]]:
+        """
+        Stationary block bootstrap (Politis & Romano, 1994) for time-series CIs.
+
+        Each replicate resamples observations in geometrically-distributed
+        blocks (expected block length n^(1/3)), preserving short-range
+        autocorrelation structure in the residuals.
+
+        Returns a dict mapping channel name → (ci_lower, ci_upper) at
+        ``1 - alpha`` coverage.  Channels whose bootstrap distribution
+        degenerates (e.g. perfect collinearity in some resamples) fall back to
+        ``(nan, nan)``.
+        """
+        rng = np.random.default_rng(self.random_state)
+        n = len(y)
+        avg_block_length = max(2.0, n ** (1.0 / 3.0))
+        p_restart = 1.0 / avg_block_length
+
+        X_arr = X.values  # noqa: N806
+        y_arr = y.values
+        col_names = list(X.columns)
+        ch_indices = {ch: col_names.index(ch) for ch in channels}
+
+        boot_coefs: dict[str, list[float]] = {ch: [] for ch in channels}
+
+        for _ in range(self.n_bootstrap):
+            # Build stationary-bootstrap indices
+            idx = np.empty(n, dtype=np.int64)
+            i = int(rng.integers(0, n))
+            for t in range(n):
+                idx[t] = i
+                if rng.random() < p_restart:
+                    i = int(rng.integers(0, n))
+                else:
+                    i = (i + 1) % n
+            X_b = X_arr[idx]  # noqa: N806
+            y_b = y_arr[idx]
+            try:
+                m = sm.OLS(y_b, X_b).fit()
+                for ch, j in ch_indices.items():
+                    boot_coefs[ch].append(float(m.params[j]))
+            except Exception:
+                continue
+
+        cis: dict[str, tuple[float, float]] = {}
+        lo_q, hi_q = 100 * alpha / 2.0, 100 * (1.0 - alpha / 2.0)
+        for ch in channels:
+            coefs = np.asarray(boot_coefs[ch], dtype=float)
+            if coefs.size == 0:
+                cis[ch] = (float("nan"), float("nan"))
+                continue
+            cis[ch] = (
+                float(np.percentile(coefs, lo_q)),
+                float(np.percentile(coefs, hi_q)),
+            )
+        return cis
 
     @staticmethod
     def _compute_vifs(X: pd.DataFrame, channels: list[str]) -> dict[str, float]:  # noqa: N803

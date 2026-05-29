@@ -5,6 +5,51 @@ All notable changes to `causal-lift` will be documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.0] — 2026-05-29
+
+Clears four of the open roadmap items in one shot: multi-geo analyzer,
+bootstrap CIs, budget optimiser, and data loaders for the three most-asked-for
+sources.
+
+### Added
+- **``GeoMMM``** analyzer for multi-geo data.  When ``spend_df`` and
+  ``sales_df`` contain a recognised geo column (``geo``, ``region``, ``dma``,
+  ``state``, ``country``), ``cl.analyze`` auto-routes to ``GeoMMM`` which:
+    - Fits an independent ``RegressionMMM`` per geo.
+    - Aggregates per-channel iROAS via spend-weighted (or median) cross-geo
+      pooling.
+    - Reports cross-geo 95% percentile CI alongside per-geo HAC/bootstrap CIs.
+    - Exposes ``result.per_geo`` for drill-down.
+- **Stationary block bootstrap CIs** in ``RegressionMMM`` via
+  ``inference="bootstrap"``.  Block length auto-sized to ``n^(1/3)`` (Politis &
+  Romano 1994).  Useful when residuals are heavily non-normal or DW < 1.0.
+- **``recommend_reallocation``** — budget reallocation recommender that takes
+  an ``AnalysisResult`` and a current allocation and proposes per-channel
+  dollar shifts.  SCALE channels get +20% (capped at +30%), CUT channels get
+  −50% (capped at −30%), HOLD / INCONCLUSIVE channels stay put.  Returns a
+  ``ReallocationPlan`` with conservation accounting and an expected-lift
+  estimate.
+- **``causal_lift.loaders``** module:
+    - ``load_shopify_orders_csv`` — Shopify "Orders export" CSV → daily revenue.
+    - ``load_meta_ads_insights_csv`` — Meta Ads Manager export → daily or
+      per-campaign spend.
+    - ``load_google_ads_report_csv`` — Google Ads campaign report → daily or
+      per-campaign spend.
+    - Direct API variants (``fetch_*_api``) ship as ``NotImplementedError``
+      stubs with clear messages; full OAuth flows land in v0.4.
+
+### Changed
+- Public API additions (no breaking changes): ``GeoMMM``,
+  ``GeoAnalysisResult``, ``detect_geo_column``, ``recommend_reallocation``,
+  ``ReallocationPlan``, ``ChannelRecommendation``.
+
+### Test additions
+- ``tests/test_geo.py``      — 8 tests
+- ``tests/test_bootstrap.py`` — 5 tests
+- ``tests/test_optimiser.py`` — 9 tests
+- ``tests/test_loaders.py``   — 8 tests
+- Total test count: 33 → 63
+
 ## [0.2.0] — 2026-05-29
 
 Adds geometric adstock and a CI-precision safety gate.  The headline change:

@@ -159,10 +159,13 @@ The library is intentionally simple. It is a starting point and a diagnostic —
 - [x] Plausibility safety gates (v0.1.1)
 - [x] Geometric adstock with auto-tuned decay (v0.2.0)
 - [x] CI precision gate (v0.2.0)
-- [ ] Geo holdout / synthetic control method (separate analyzer)
-- [ ] Budget allocation optimiser (given iROAS estimates, recommend dollar reallocations)
-- [ ] Bootstrap CIs as an alternative to HAC
-- [ ] Data loaders for Shopify, Meta Ads, Google Ads APIs
+- [x] Multi-geo analyzer with cross-geo CI aggregation (v0.3.0)
+- [x] Stationary block bootstrap CIs (v0.3.0)
+- [x] Budget reallocation recommender (v0.3.0)
+- [x] CSV loaders for Shopify, Meta Ads, Google Ads (v0.3.0)
+- [ ] Live API integrations (OAuth) for Shopify, Meta, Google (v0.4 target)
+- [ ] Abadie-Diamond-Hainmueller synthetic control method (separate analyzer)
+- [ ] Hill / saturation curves with marginal-vs-average iROAS reporting
 
 ## Hosted playground
 
