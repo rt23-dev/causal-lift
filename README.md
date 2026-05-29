@@ -140,7 +140,7 @@ Four safety gates layer over the regression output:
 3. **Σ(iROAS · adstocked_spend) / revenue > 50%** → all `SCALE` labels demoted to `INCONCLUSIVE` (model is collectively over-attributing).
 4. **95% CI wider than the point estimate AND would-be SCALE** → `INCONCLUSIVE` (estimate too imprecise to commit budget).
 
-See [`examples/interpreting_results.md`](examples/interpreting_results.md) for a practical guide to reading the outputs.
+See [`examples/interpreting_results.md`](examples/interpreting_results.md) for a practical guide to reading the outputs, and [`docs/case-studies.md`](docs/case-studies.md) for a deep dive on a fictional $15M-ARR brand plus a catalog of 6 use-case scenarios and 5 anti-cases.
 
 ## What this library does NOT do
 
