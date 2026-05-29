@@ -60,8 +60,37 @@ class RegressionMMM(BaseModel):
     β_i = incremental ROAS for channel i (causal $ revenue per $ spent).
     """
 
-    def __init__(self, min_obs: int = 21):
+    # Default geometric adstock decay grid for the "auto" search.
+    # 0.0 = no carryover; 0.7 = ~2-period half-life (≈ 2 weeks for weekly, 2 days for daily).
+    DEFAULT_ADSTOCK_GRID: tuple[float, ...] = (0.0, 0.3, 0.5, 0.7)
+
+    def __init__(
+        self,
+        min_obs: int = 21,
+        adstock: str | dict[str, float] | None = "auto",
+        adstock_grid: tuple[float, ...] | None = None,
+    ):
+        """
+        Parameters
+        ----------
+        min_obs : int
+            Minimum observations before a warning fires.
+        adstock : "auto" | dict[str, float] | None
+            Geometric adstock decay applied to each channel's spend before
+            regression.  Models carryover effects (TV/OOH/YouTube linger;
+            search/display do not).
+            - "auto" (default): greedy per-channel grid search by adjusted R².
+            - dict mapping channel name to theta ∈ [0, 1): explicit override.
+            - None: no adstock (legacy v0.1 behaviour).
+        adstock_grid : tuple of floats, optional
+            Values searched when `adstock="auto"`.  Defaults to
+            (0.0, 0.3, 0.5, 0.7).
+        """
         self.min_obs = min_obs
+        self.adstock = adstock
+        self.adstock_grid = (
+            tuple(adstock_grid) if adstock_grid is not None else self.DEFAULT_ADSTOCK_GRID
+        )
 
     def fit(
         self,
@@ -116,7 +145,21 @@ class RegressionMMM(BaseModel):
 
         attr_proxy = self._compute_attribution_proxy(daily, channels)
 
-        X = self._build_features(daily, channels, cadence=cadence, span_days=span_days)  # noqa: N806
+        # Adstock: select per-channel decay (auto / explicit / off)
+        adstock_thetas = self._resolve_adstock_thetas(daily, channels, cadence, span_days)
+        if any(t > 0 for t in adstock_thetas.values()):
+            nz_adstock = ", ".join(
+                f"{ch}={t:.1f}" for ch, t in adstock_thetas.items() if t > 0
+            )
+            warnings.append(
+                f"Adstock applied (geometric, per-channel auto-selected by adjusted R²): "
+                f"{nz_adstock}. theta=0 means no carryover; theta=0.7 means a long tail."
+            )
+
+        X = self._build_features(  # noqa: N806
+            daily, channels, cadence=cadence, span_days=span_days,
+            adstock_thetas=adstock_thetas,
+        )
         y = daily["revenue"]
         n = len(y)
         max_lags = max(1, int(4 * (n / 100) ** (2 / 9)))
@@ -155,7 +198,13 @@ class RegressionMMM(BaseModel):
             share = nonzero_share[ch]
 
             display_roas = max(0.0, raw_coef)
-            incremental_rev = display_roas * total_spend
+            # Use adstocked spend sum for incremental_revenue (β·Σadstock(spend) is
+            # the true model-implied contribution; with normalised adstock this is
+            # very close to β·Σspend with only small edge effects).
+            adstocked_total = float(
+                self._apply_adstock(daily[ch].values.astype(float), adstock_thetas[ch]).sum()
+            )
+            incremental_rev = display_roas * adstocked_total
 
             rec, reason = self.recommend(
                 display_roas,
@@ -208,7 +257,7 @@ class RegressionMMM(BaseModel):
             channels=channel_results,
             method_used=(
                 "RegressionMMM (multivariate OLS, trend + cadence-aware seasonality, "
-                "HAC/Newey-West SEs, plausibility gates)"
+                "geometric adstock, HAC/Newey-West SEs, plausibility gates)"
             ),
             total_revenue=total_revenue,
             total_spend=float(daily[channels].sum().sum()),
@@ -219,6 +268,7 @@ class RegressionMMM(BaseModel):
             durbin_watson=dw,
             cadence=cadence,
             implied_incremental_share=implied_share,
+            adstock_thetas=adstock_thetas,
             warnings=warnings,
         )
 
@@ -256,20 +306,26 @@ class RegressionMMM(BaseModel):
         channels = [c for c in daily.columns if c != "revenue" and daily[c].sum() > 0]
         return daily, channels
 
-    @staticmethod
+    @classmethod
     def _build_features(
+        cls,
         daily: pd.DataFrame,
         channels: list[str],
         cadence: str,
         span_days: int,
+        adstock_thetas: dict[str, float] | None = None,
     ) -> pd.DataFrame:
         """
         Construct the OLS design matrix.
 
-        Always includes:    const, linear trend, channel spend columns.
+        Always includes:    const, linear trend, channel spend columns
+                            (geometrically adstocked if `adstock_thetas` given).
         Daily-only:         day-of-week dummies (Sun = reference).
         Span >= 365 days:   annual Fourier sin/cos (handles seasonal patterns).
         """
+        if adstock_thetas is None:
+            adstock_thetas = {ch: 0.0 for ch in channels}
+
         n = len(daily)
         feat: dict[str, np.ndarray] = {}
         feat["trend"] = np.arange(n, dtype=float)
@@ -294,9 +350,92 @@ class RegressionMMM(BaseModel):
             feat["cos_annual"] = np.cos(2 * np.pi * t / period)
 
         for ch in channels:
-            feat[ch] = daily[ch].values.astype(float)
+            raw = daily[ch].values.astype(float)
+            theta = adstock_thetas.get(ch, 0.0)
+            feat[ch] = cls._apply_adstock(raw, theta) if theta > 0 else raw
 
         return sm.add_constant(pd.DataFrame(feat, index=daily.index))
+
+    @staticmethod
+    def _apply_adstock(spend: np.ndarray, theta: float) -> np.ndarray:
+        """
+        Geometric adstock with normalised impulse response.
+
+        Impulse response: (1-θ), (1-θ)θ, (1-θ)θ², ...   →   sums to 1.
+        Normalisation preserves the iROAS interpretation of the spend
+        coefficient: $1 of raw spend still produces β of (time-shifted) revenue.
+
+        Recurrence: raw_out[t] = spend[t] + θ · raw_out[t-1],
+                    adstocked[t] = (1-θ) · raw_out[t]
+        """
+        if theta <= 0:
+            return spend
+        if theta >= 1:
+            raise ValueError(f"adstock theta must be < 1, got {theta}")
+        n = len(spend)
+        out = np.zeros(n, dtype=float)
+        out[0] = spend[0]
+        for t in range(1, n):
+            out[t] = spend[t] + theta * out[t - 1]
+        return out * (1.0 - theta)
+
+    def _resolve_adstock_thetas(
+        self,
+        daily: pd.DataFrame,
+        channels: list[str],
+        cadence: str,
+        span_days: int,
+    ) -> dict[str, float]:
+        """Dispatch to whichever adstock-selection mode is configured."""
+        if self.adstock is None:
+            return {ch: 0.0 for ch in channels}
+        if isinstance(self.adstock, dict):
+            return {ch: float(self.adstock.get(ch, 0.0)) for ch in channels}
+        if self.adstock == "auto":
+            return self._select_adstock_auto(daily, channels, cadence, span_days)
+        raise ValueError(
+            f"adstock must be 'auto', a dict, or None — got {self.adstock!r}"
+        )
+
+    def _select_adstock_auto(
+        self,
+        daily: pd.DataFrame,
+        channels: list[str],
+        cadence: str,
+        span_days: int,
+    ) -> dict[str, float]:
+        """
+        Greedy per-channel grid search over `adstock_grid`.
+
+        For each channel in turn, holds all other thetas at their current best
+        and picks the value of this channel's theta that maximises **adjusted**
+        R² (which penalises model complexity, mitigating overfit risk).
+
+        Uses plain OLS (not HAC) during the search — fits are ~1ms each so the
+        whole search is sub-second on typical data.  The chosen thetas are
+        then used in the final HAC-SE fit done by `fit()`.
+        """
+        thetas: dict[str, float] = {ch: 0.0 for ch in channels}
+        y = daily["revenue"]
+        for target in channels:
+            best_r2_adj = -np.inf
+            best_theta = 0.0
+            for theta in self.adstock_grid:
+                trial = {**thetas, target: theta}
+                X_trial = self._build_features(  # noqa: N806
+                    daily, channels, cadence=cadence, span_days=span_days,
+                    adstock_thetas=trial,
+                )
+                try:
+                    m = sm.OLS(y, X_trial).fit()
+                    r2_adj = float(m.rsquared_adj)
+                except Exception:
+                    continue
+                if r2_adj > best_r2_adj:
+                    best_r2_adj = r2_adj
+                    best_theta = theta
+            thetas[target] = best_theta
+        return thetas
 
     @staticmethod
     def _compute_vifs(X: pd.DataFrame, channels: list[str]) -> dict[str, float]:  # noqa: N803

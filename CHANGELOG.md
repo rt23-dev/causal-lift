@@ -5,6 +5,55 @@ All notable changes to `causal-lift` will be documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.0] — 2026-05-29
+
+Adds geometric adstock and a CI-precision safety gate.  The headline change:
+the library now models carryover effects (TV and OOH no longer look dead
+because their spend disperses across weeks), and refuses to issue `SCALE`
+on estimates whose 95% CI is wider than the point estimate itself.
+
+### Added
+- **Geometric adstock** in `RegressionMMM`.
+  - `adstock="auto"` (default): greedy per-channel grid search over
+    `{0.0, 0.3, 0.5, 0.7}` by adjusted R².
+  - `adstock=dict[str, float]`: explicit per-channel decay.
+  - `adstock=None`: legacy v0.1 behaviour (no adstock).
+  - Custom grid via `adstock_grid=(0.0, 0.2, 0.4, 0.6, 0.8)`.
+  - Impulse response is normalised so β preserves its iROAS interpretation.
+- **Precision gate**: `SCALE` recommendations are demoted to
+  `INCONCLUSIVE` when the 95% CI width exceeds the point estimate. Catches
+  the case where the model has high model fit but is genuinely uncertain
+  about a specific channel's contribution.
+- `AnalysisResult.adstock_thetas: dict[str, float]` exposes the selected
+  decay per channel on the public API.
+
+### Changed
+- Method label updated: "RegressionMMM (multivariate OLS, trend +
+  cadence-aware seasonality, geometric adstock, HAC/Newey-West SEs,
+  plausibility gates)".
+- `incremental_revenue` per channel now uses `β · Σ(adstocked_spend)`
+  instead of `β · Σ(raw_spend)`.  With normalised adstock these differ only
+  by small edge effects, but the former is exactly the model-implied
+  contribution.
+- `test_high_vif_forces_hold` updated to accept either `HOLD` or
+  `INCONCLUSIVE` (adstock auto-search can break perfect collinearity in
+  the design matrix, dropping VIF below the 10 threshold while the
+  precision gate correctly catches the imprecision).
+
+### Benchmark
+On the Robyn `dt_simulated_weekly.csv` dataset:
+
+|                                  | 0.1.0      | 0.1.1     | 0.2.0      |
+|----------------------------------|-----------|-----------|-----------|
+| Model R²                          | 0.48     | 0.82      | **0.83**  |
+| Durbin-Watson                     | 1.23     | 1.79      | **1.84**  |
+| `tv_S` recommendation             | SCALE @ 7x | HOLD @ 3.8x | **SCALE @ 5.8x** |
+| `ooh_S` iROAS                     | 0.63x     | 0.17x     | **1.05x** |
+| `facebook_S` recommendation       | SCALE @ 62x | HOLD @ 14x | **INCONCLUSIVE @ 30x** |
+
+The `tv_S` recovery is the headline: adstock revealed that TV has a real,
+identifiable lift that same-day regression was missing.
+
 ## [0.1.1] — 2026-05-27
 
 Critical safety fixes triggered by running the library on Meta Robyn's

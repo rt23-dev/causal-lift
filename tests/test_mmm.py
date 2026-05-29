@@ -75,9 +75,15 @@ def test_high_vif_forces_hold():
     sales_df = pd.DataFrame({"date": dates, "revenue": revenue})
 
     result = analyze(spend_df, sales_df)
-    # At least one channel should be flagged HOLD due to high VIF
+    # Neither channel should get SCALE — the library should fall back to HOLD or
+    # INCONCLUSIVE because the estimates aren't reliably identified.
     recs = {c.channel: c.recommendation for c in result.channels}
-    assert "HOLD" in recs.values(), f"Expected HOLD for collinear channels, got: {recs}"
+    assert "SCALE" not in recs.values(), (
+        f"Collinear channels should not produce SCALE, got: {recs}"
+    )
+    assert any(r in {"HOLD", "INCONCLUSIVE"} for r in recs.values()), (
+        f"Expected at least one HOLD/INCONCLUSIVE for collinear channels, got: {recs}"
+    )
 
 
 def test_to_dataframe_returns_expected_columns():

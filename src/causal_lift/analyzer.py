@@ -61,6 +61,7 @@ class AnalysisResult:
     durbin_watson: float = 2.0
     cadence: str = "daily"                       # "daily", "weekly", or "irregular"
     implied_incremental_share: float = 0.0       # Σ(iROAS·spend) / total_revenue
+    adstock_thetas: dict[str, float] = field(default_factory=dict)  # per-channel decay
     warnings: list[str] = field(default_factory=list)
 
     def to_dict(self) -> dict:
@@ -76,6 +77,7 @@ class AnalysisResult:
             "durbin_watson": round(self.durbin_watson, 2),
             "cadence": self.cadence,
             "implied_incremental_share": round(self.implied_incremental_share, 3),
+            "adstock_thetas": {ch: round(t, 2) for ch, t in self.adstock_thetas.items()},
             "warnings": self.warnings,
         }
 
@@ -170,6 +172,20 @@ class BaseModel(ABC):
                 f"Same-day regression cannot separate its effect from baseline/trend "
                 f"co-movement, so the {incremental_roas:.1f}x estimate is likely inflated. "
                 f"A budget holdout (pause spend in 2-3 random weeks) would give a credible estimate.",
+            )
+
+        # Precision check: SCALE should require a CI tighter than the point estimate.
+        # If the 95% CI width is wider than the point estimate itself, the model is
+        # admitting it can't tell you the answer within a factor of ~2 — that is not
+        # enough precision to commit budget to.
+        ci_width = upper - lower
+        denom = max(incremental_roas, be * 0.5)  # avoid div-by-zero for near-zero estimates
+        if would_be_scale and ci_width > denom:
+            return (
+                "INCONCLUSIVE",
+                f"Estimate is too imprecise to scale: iROAS {incremental_roas:.1f}x with "
+                f"95% CI [{lower:.1f}, {upper:.1f}] spans {ci_width:.1f} units — wider than "
+                f"the point estimate itself. A budget experiment would narrow this.",
             )
 
         if would_be_scale:
