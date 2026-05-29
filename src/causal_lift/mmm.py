@@ -29,8 +29,6 @@ What this model is honest about
 
 from __future__ import annotations
 
-from typing import Dict, List, Tuple
-
 import numpy as np
 import pandas as pd
 import statsmodels.api as sm
@@ -71,7 +69,7 @@ class RegressionMMM(BaseModel):
         sales_df: pd.DataFrame,
         contribution_margin: float = 0.30,
     ) -> AnalysisResult:
-        warnings: List[str] = []
+        warnings: list[str] = []
         contribution_margin = max(0.05, min(0.95, contribution_margin))
         breakeven_roas = 1.0 / contribution_margin
 
@@ -104,7 +102,7 @@ class RegressionMMM(BaseModel):
         )
 
         # Per-channel always-on share — feeds into the recommendation gates
-        nonzero_share: Dict[str, float] = {
+        nonzero_share: dict[str, float] = {
             ch: float((daily[ch] > 0).mean()) for ch in channels
         }
         always_on = [ch for ch, s in nonzero_share.items() if s > ALWAYS_ON_THRESHOLD]
@@ -118,7 +116,7 @@ class RegressionMMM(BaseModel):
 
         attr_proxy = self._compute_attribution_proxy(daily, channels)
 
-        X = self._build_features(daily, channels, cadence=cadence, span_days=span_days)
+        X = self._build_features(daily, channels, cadence=cadence, span_days=span_days)  # noqa: N806
         y = daily["revenue"]
         n = len(y)
         max_lags = max(1, int(4 * (n / 100) ** (2 / 9)))
@@ -148,7 +146,7 @@ class RegressionMMM(BaseModel):
             )
 
         # Build per-channel results with first-pass recommendations
-        channel_results: List[ChannelResult] = []
+        channel_results: list[ChannelResult] = []
         for ch in channels:
             raw_coef = float(model.params[ch])
             ci_low, ci_high = model.conf_int(alpha=0.05).loc[ch]
@@ -248,7 +246,7 @@ class RegressionMMM(BaseModel):
     @staticmethod
     def _build_daily_panel(
         spend_df: pd.DataFrame, sales_df: pd.DataFrame
-    ) -> Tuple[pd.DataFrame, List[str]]:
+    ) -> tuple[pd.DataFrame, list[str]]:
         spend_wide = spend_df.pivot_table(
             index="date", columns="channel", values="spend", aggfunc="sum", fill_value=0
         )
@@ -261,7 +259,7 @@ class RegressionMMM(BaseModel):
     @staticmethod
     def _build_features(
         daily: pd.DataFrame,
-        channels: List[str],
+        channels: list[str],
         cadence: str,
         span_days: int,
     ) -> pd.DataFrame:
@@ -273,7 +271,7 @@ class RegressionMMM(BaseModel):
         Span >= 365 days:   annual Fourier sin/cos (handles seasonal patterns).
         """
         n = len(daily)
-        feat: Dict[str, np.ndarray] = {}
+        feat: dict[str, np.ndarray] = {}
         feat["trend"] = np.arange(n, dtype=float)
 
         # Day-of-week dummies — only meaningful for daily data
@@ -301,10 +299,10 @@ class RegressionMMM(BaseModel):
         return sm.add_constant(pd.DataFrame(feat, index=daily.index))
 
     @staticmethod
-    def _compute_vifs(X: pd.DataFrame, channels: List[str]) -> Dict[str, float]:
-        X_arr = X.values
+    def _compute_vifs(X: pd.DataFrame, channels: list[str]) -> dict[str, float]:  # noqa: N803
+        X_arr = X.values  # noqa: N806
         col_names = list(X.columns)
-        vifs: Dict[str, float] = {}
+        vifs: dict[str, float] = {}
         for ch in channels:
             idx = col_names.index(ch)
             try:
@@ -315,11 +313,11 @@ class RegressionMMM(BaseModel):
 
     @staticmethod
     def _compute_attribution_proxy(
-        daily: pd.DataFrame, channels: List[str]
-    ) -> Dict[str, float]:
+        daily: pd.DataFrame, channels: list[str]
+    ) -> dict[str, float]:
         """Naive proportional daily attribution — NOT what platforms report."""
         total_daily_spend = daily[channels].sum(axis=1)
-        result: Dict[str, float] = {}
+        result: dict[str, float] = {}
         for ch in channels:
             ch_total = daily[ch].sum()
             if ch_total == 0:

@@ -12,14 +12,12 @@ real-world data needs to look like for the estimates to be trustworthy.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Dict
 
 import numpy as np
 import pandas as pd
 
-
 # Ground-truth incremental ROAS values baked into the data-generating process.
-DEFAULT_TRUE_ROAS: Dict[str, float] = {
+DEFAULT_TRUE_ROAS: dict[str, float] = {
     "facebook": 2.0,   # below 3.33x breakeven at 30% margin → CUT
     "google": 4.5,     # above 3.33x breakeven → SCALE
     "tiktok": 0.8,     # weak; mostly brand awareness → CUT
@@ -32,7 +30,7 @@ class SyntheticData:
 
     spend_df: pd.DataFrame
     sales_df: pd.DataFrame
-    ground_truth: Dict[str, float]
+    ground_truth: dict[str, float]
     note: str
 
     def __iter__(self):  # allows: spend_df, sales_df, gt = generate_synthetic_data()
@@ -44,7 +42,7 @@ class SyntheticData:
 def generate_synthetic_data(
     n_days: int = 90,
     seed: int = 42,
-    true_roas: Dict[str, float] | None = None,
+    true_roas: dict[str, float] | None = None,
 ) -> SyntheticData:
     """
     Generate `n_days` of synthetic ad spend + sales data with known iROAS.

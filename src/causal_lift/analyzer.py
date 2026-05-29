@@ -4,10 +4,8 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import List, Optional, Tuple
 
 import pandas as pd
-
 
 # Implausibility thresholds used for safety gates.
 ALWAYS_ON_THRESHOLD = 0.85       # channels active in >85% of periods are "always-on"
@@ -23,11 +21,11 @@ class ChannelResult:
     attribution_proxy_roas: float   # proportional daily attribution — NOT platform-reported
     incremental_roas: float         # causal OLS coefficient ($ revenue per $ spend)
     incremental_revenue: float
-    confidence_interval: List[float]  # [lower_95, upper_95]
+    confidence_interval: list[float]  # [lower_95, upper_95]
     recommendation: str             # SCALE / HOLD / CUT / INCONCLUSIVE (margin-aware)
     recommendation_reason: str
     model_fit: float = 0.0          # global model R²
-    vif_score: Optional[float] = None
+    vif_score: float | None = None
     raw_coef: float = 0.0           # unclipped OLS coefficient
     nonzero_share: float = 1.0      # fraction of periods this channel had spend > 0
 
@@ -52,7 +50,7 @@ class ChannelResult:
 class AnalysisResult:
     """Full analysis result with per-channel breakdown and diagnostics."""
 
-    channels: List[ChannelResult]
+    channels: list[ChannelResult]
     method_used: str
     total_revenue: float
     total_spend: float
@@ -63,7 +61,7 @@ class AnalysisResult:
     durbin_watson: float = 2.0
     cadence: str = "daily"                       # "daily", "weekly", or "irregular"
     implied_incremental_share: float = 0.0       # Σ(iROAS·spend) / total_revenue
-    warnings: List[str] = field(default_factory=list)
+    warnings: list[str] = field(default_factory=list)
 
     def to_dict(self) -> dict:
         return {
@@ -128,11 +126,11 @@ class BaseModel(ABC):
     @staticmethod
     def recommend(
         incremental_roas: float,
-        ci: List[float],
+        ci: list[float],
         breakeven_roas: float,
-        vif: Optional[float] = None,
+        vif: float | None = None,
         nonzero_share: float = 1.0,
-    ) -> Tuple[str, str]:
+    ) -> tuple[str, str]:
         """
         Margin-aware recommendation with safety gates.
 
