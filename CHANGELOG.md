@@ -5,6 +5,41 @@ All notable changes to `causal-lift` will be documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.0] — 2026-05-29
+
+**The product layer.** Adds the geo-holdout experimentation loop that
+turns ``causal-lift`` from a passive measurement library into the
+foundation for a managed-services product targeting brands running
+physical media (TV, OOH, podcast, radio, direct mail).
+
+### Added
+- ``design_geo_holdout`` — pre-experiment design.  Given baseline
+  revenue by DMA, auto-selects treated/control geos by maximising
+  pre-period log-revenue correlation, runs a diff-in-diff power
+  calculation, and returns minimum detectable effect at 80% power.
+- ``analyze_geo_holdout`` — post-experiment analysis.  Computes the
+  treated-vs-control diff-in-diff with a stationary block bootstrap
+  CI (robust to autocorrelation).  Returns a categorical verdict
+  (``LIFT_DETECTED`` / ``NO_EFFECT`` / ``NEGATIVE_LIFT`` /
+  ``INCONCLUSIVE``) and the implied iROAS on the spend change.
+- ``GeoHoldoutDesign`` and ``GeoHoldoutResult`` public dataclasses
+  with ``.summary()`` and ``.to_dict()`` methods.
+- ``examples/billboard_holdout.py`` — end-to-end OOH workflow.  On
+  fully synthetic data the analysis recovers a 7% true lift as
+  +7.6% (95% CI [+5.6%, +9.7%]) and computes the correct implied
+  iROAS.
+- ``docs/product-brief.md`` — strategic positioning document.
+
+### Changed
+- New dependency: ``scipy >= 1.10`` (for the normal-distribution CDF
+  used in the power calculation).
+
+### Test additions
+- ``tests/test_experiments.py`` — 19 tests covering design selection,
+  power monotonicity, post-experiment verdict logic, bootstrap
+  determinism, and false-positive control under no-true-lift.
+- Total test count: 63 → 82.
+
 ## [0.3.0] — 2026-05-29
 
 Clears four of the open roadmap items in one shot: multi-geo analyzer,

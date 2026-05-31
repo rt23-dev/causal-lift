@@ -15,6 +15,12 @@ suggestions.
 from causal_lift._version import __version__
 from causal_lift.analyzer import AnalysisResult, BaseModel, ChannelResult
 from causal_lift.data import load_sales_csv, load_spend_csv
+from causal_lift.experiments import (
+    GeoHoldoutDesign,
+    GeoHoldoutResult,
+    analyze_geo_holdout,
+    design_geo_holdout,
+)
 from causal_lift.geo import GeoAnalysisResult, GeoMMM, detect_geo_column
 from causal_lift.mmm import RegressionMMM
 from causal_lift.optimiser import (
@@ -40,6 +46,11 @@ __all__ = [
     "recommend_reallocation",
     "ReallocationPlan",
     "ChannelRecommendation",
+    # Experiments (geo holdout design + analysis)
+    "design_geo_holdout",
+    "analyze_geo_holdout",
+    "GeoHoldoutDesign",
+    "GeoHoldoutResult",
     # Data loading
     "load_spend_csv",
     "load_sales_csv",
