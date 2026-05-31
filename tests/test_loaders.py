@@ -90,6 +90,90 @@ def test_google_loader_campaign_grouped():
     assert set(df["channel"].unique()) == {"Search-Brand", "Search-Generic"}
 
 
+def test_amazon_loader_day_grouped():
+    csv = (
+        "Date,Campaign Name,Advertised ASIN,Spend,Sales\n"
+        "2025-01-01,SP-Energy-Drink,B0AAA111,500.00,2800\n"
+        "2025-01-01,SP-Hydration-Mix,B0BBB222,200.00,1400\n"
+        "2025-01-02,SP-Energy-Drink,B0AAA111,550.00,3100\n"
+    )
+    from causal_lift.loaders import load_amazon_ads_csv
+    df = load_amazon_ads_csv(StringIO(csv))
+    assert set(df.columns) == {"date", "channel", "spend"}
+    assert len(df) == 2
+    assert (df["channel"] == "amazon").all()
+    day1 = df.loc[df["date"] == df["date"].min()].iloc[0]
+    assert day1["spend"] == pytest.approx(700.0, abs=0.01)
+
+
+def test_amazon_loader_asin_grouped():
+    csv = (
+        "Date,Campaign Name,Advertised ASIN,Spend,Sales\n"
+        "2025-01-01,SP-Energy-Drink,B0AAA111,500.00,2800\n"
+        "2025-01-01,SP-Hydration-Mix,B0BBB222,200.00,1400\n"
+    )
+    from causal_lift.loaders import load_amazon_ads_csv
+    df = load_amazon_ads_csv(StringIO(csv), group_by="asin")
+    assert "amazon_B0AAA111" in set(df["channel"])
+    assert "amazon_B0BBB222" in set(df["channel"])
+
+
+def test_amazon_loader_campaign_grouped():
+    csv = (
+        "Date,Campaign Name,Advertised ASIN,Spend,Sales\n"
+        "2025-01-01,SP-Energy-Drink,B0AAA111,500.00,2800\n"
+        "2025-01-01,SP-Hydration-Mix,B0BBB222,200.00,1400\n"
+    )
+    from causal_lift.loaders import load_amazon_ads_csv
+    df = load_amazon_ads_csv(StringIO(csv), group_by="campaign")
+    assert set(df["channel"]) == {"SP-Energy-Drink", "SP-Hydration-Mix"}
+
+
+def test_amazon_loader_missing_spend_raises():
+    csv = "Date,Campaign Name,Advertised ASIN\n2025-01-01,X,B0AAA111\n"
+    from causal_lift.loaders import load_amazon_ads_csv
+    with pytest.raises(ValueError, match="missing a spend column"):
+        load_amazon_ads_csv(StringIO(csv))
+
+
+def test_amazon_sales_loader_returns_sku_revenue():
+    csv = (
+        "Date,Advertised ASIN,Sales\n"
+        "2025-01-01,B0AAA111,12500\n"
+        "2025-01-01,B0BBB222,4200\n"
+        "2025-01-02,B0AAA111,13100\n"
+    )
+    from causal_lift.loaders import load_amazon_sales_csv
+    df = load_amazon_sales_csv(StringIO(csv))
+    assert set(df.columns) == {"date", "asin", "revenue"}
+    assert df["revenue"].sum() == pytest.approx(29_800.0, abs=0.5)
+
+
+def test_walmart_loader_day_grouped():
+    csv = (
+        "Date,Campaign Name,Item ID,Ad Spend,Attributed Sales\n"
+        "2025-01-01,Sponsored-Search,WM12345,400.00,2200\n"
+        "2025-01-01,Sponsored-Search,WM67890,150.00,800\n"
+        "2025-01-02,Sponsored-Search,WM12345,425.00,2350\n"
+    )
+    from causal_lift.loaders import load_walmart_ads_csv
+    df = load_walmart_ads_csv(StringIO(csv))
+    assert (df["channel"] == "walmart_connect").all()
+    day1 = df.loc[df["date"] == df["date"].min()].iloc[0]
+    assert day1["spend"] == pytest.approx(550.0, abs=0.01)
+
+
+def test_walmart_loader_item_grouped():
+    csv = (
+        "Date,Campaign Name,Item ID,Ad Spend,Attributed Sales\n"
+        "2025-01-01,Sponsored-Search,WM12345,400.00,2200\n"
+        "2025-01-01,Sponsored-Search,WM67890,150.00,800\n"
+    )
+    from causal_lift.loaders import load_walmart_ads_csv
+    df = load_walmart_ads_csv(StringIO(csv), group_by="item")
+    assert "walmart_connect_WM12345" in set(df["channel"])
+
+
 def test_api_stubs_raise_not_implemented():
     with pytest.raises(NotImplementedError):
         fetch_shopify_orders_api()

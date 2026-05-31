@@ -5,6 +5,46 @@ All notable changes to `causal-lift` will be documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.0] — 2026-05-30
+
+**Retail-media pivot.** Repositions ``causal-lift`` from a generic
+"DTC MMM library" into the open-source incrementality workflow for
+brands spending on retail media networks (Amazon Sponsored Products,
+Walmart Connect, Target Roundel, Instacart, Kroger Precision).  The
+underlying methodology is unchanged — the geo-holdout machinery in
+v0.4 already generalises to SKU-level holdouts via the
+``geo_column`` parameter — but the loaders, examples, README, and
+product brief are now retail-media-first.
+
+### Added
+- ``load_amazon_ads_csv`` — Amazon Advertising Console exports
+  (Sponsored Products / Sponsored Brands / Sponsored Display).
+  Supports day-level, campaign-level, or ASIN-level grouping.
+- ``load_amazon_sales_csv`` — Amazon Business Reports (Detail Page
+  Sales and Traffic by ASIN) → daily per-SKU organic + paid revenue.
+- ``load_walmart_ads_csv`` — Walmart Connect Ad Center exports,
+  day / campaign / item-level grouping.
+- ``examples/amazon_sku_holdout.py`` — RidgeBev fictional CPG brand
+  runs a 4-week SKU-level holdout on Amazon Sponsored Products.
+  The library recovers a known true 8% revenue drop as -9.0%
+  (95% CI [-10.5%, -7.5%]) with p < 0.001 and computes the correct
+  implied iROAS of 0.75x. Verdict: NEGATIVE_LIFT — ad spend was below
+  break-even on the treated SKUs.
+
+### Changed
+- README rewritten to lead with retail media as the primary use case;
+  physical media (TV/OOH/podcast) and DTC MMM repositioned as
+  secondary use cases.
+- ``docs/product-brief.md`` rewritten: new ICP (CPG brand ops directors
+  at $50-500M revenue spending $1-25M/year on retail media), new
+  competitive analysis (Pacvue, Skai, Perpetua, Haus, Tatari, Recast),
+  new pricing tiers (with $15K/month multi-retailer tier added).
+
+### Test additions
+- 7 new tests covering Amazon Ads CSV (day/campaign/ASIN grouping),
+  Amazon Sales CSV, Walmart Connect CSV (day/item grouping).
+- Total test count: 82 → 89.
+
 ## [0.4.0] — 2026-05-29
 
 **The product layer.** Adds the geo-holdout experimentation loop that

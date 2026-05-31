@@ -2,110 +2,108 @@
 
 ## What we sell
 
-**Causal-lift is the open-source measurement layer beneath a managed-services product for brands running physical media (TV, OOH, podcast, radio, direct mail).**
+**`causal-lift` is the open-source incrementality workflow for brand teams running retail media spend (Amazon Ads, Walmart Connect, Target Roundel, Instacart, Kroger Precision, Sam's Club).** The OSS library is the credibility wedge. The product is the SKU-level holdout design + analysis loop that runs on top of it, plus the retail media network integrations that turn 60+ disparate APIs into one workflow.
 
-The OSS library is the credibility wedge. The product is the geo-holdout experimentation loop that wraps it.
+## Why retail media, why now
 
-## The customer
+- **Category size:** Retail media is **$50B+** of US ad spend, growing 25% YoY — the second-fastest-growing digital ad category after CTV.
+- **Brand pain is acute:** Brand managers at CPG companies spending $1–50M/year on Amazon Ads have **no credible measurement layer** — only Amazon's 7-day attributed-sales number, which everyone in the category knows is inflated.
+- **Existing tools optimise bids; they don't measure causal lift.** Pacvue ($1B+ valuation), Skai (PE), Perpetua (acquired by Ascential), Stackline — all focused on bid management, keyword research, search-share tracking. None solve incrementality.
+- **Mid-market is unserved.** Haus ($50K+ ACV) serves enterprise. Recast's GeoLift ($100/month) is digital-DTC focused, not retail media. Triple Whale and Northbeam don't cover Amazon/Walmart at all.
+- **Buyer is sophisticated and budget-rich.** Ad ops directors at $100M–$5B CPG brands buy measurement software at $5K–$50K/month. Not 1-person teams running Shopify stores.
+- **The math is solvable.** SKU-level holdouts are the canonical retail media experiment — pause Sponsored Products on a subset of ASINs, measure the revenue drop in treated vs control SKUs. `causal-lift` already does this end-to-end.
 
-A $20–200M-revenue DTC or omnichannel brand spending **$500K–$5M annually on physical media** with no rigorous way to know what works. Specifically:
+## The ICP, in one sentence
 
-- Brands running their first TV campaign (streaming or linear) and asking "is this even working?"
-- Brands considering doubling OOH and needing evidence before signing a 12-month media contract
-- Brands with significant podcast spend who've run out of promo-code attribution credibility
-- Brands whose agency is asking for an OOH budget increase and can't substantiate it
+> Brand manager or ad ops director at a $50–500M-revenue CPG company spending $1–25M/year across 2+ retail media networks, currently using Pacvue/Skai for bidding and a spreadsheet for measurement.
 
-These brands cannot afford Haus's enterprise pricing ($50K+/year, ~50 customers globally). They are too sophisticated for vibes-based attribution. **There is no tool serving this segment today.**
+Named examples of the kind of brand we're targeting (not customers — illustrative):
+- **Functional beverage**: Liquid IV, Liquid Death, Olipop, Poppi, Athletic Greens
+- **CPG snacks**: Mid-Day Squares, Magic Spoon, Catalina Crunch, Skinny Pop
+- **Supplements**: Athletic Greens (AG1), Ritual, Thorne, Sports Research
+- **Personal care**: OSEA, Native, Hims, Curology
+
+These brands collectively spend $200M+/year on Amazon Ads alone. The ad ops directors at all of them have run a SKU-level holdout in a spreadsheet at some point. None of them have done it well.
 
 ## The competition
 
-| Player | What they sell | Who they serve | Where they fail this customer |
-|---|---|---|---|
-| **Haus** | Geo holdouts as managed service | Enterprise ($50K+ ACV) | Too expensive |
-| **Tatari** | Streaming TV measurement | DTC brands on CTV | Single channel only |
-| **Triple Whale, Northbeam** | Digital MTA + MMM | DTC digital-first | Doesn't handle physical media |
-| **Recast, PyMC-Marketing, Robyn** | MMM frameworks | Sophisticated analytics teams | No experimentation layer, no managed service |
-| **Nielsen, Geopath, Comscore** | Panel-based industry measurement | Big advertisers | Pre-historic, declining, can't ship software |
+| Player | What they sell | Where they fail this customer |
+|---|---|---|
+| **Pacvue** ($1B+ valuation) | Bid management + reporting for retail media | No causal measurement layer |
+| **Skai** (PE-owned) | Bid management across retail + search | No causal measurement layer |
+| **Perpetua** (acquired by Ascential) | Amazon Ads optimisation | Single-network, no incrementality |
+| **Stackline** | Amazon analytics + competitive intelligence | Descriptive, not causal |
+| **Haus.io** ($36M ARR, $55M raised) | Managed geo-holdout incrementality | $50K+ ACV, DTC-first not retail-media-first |
+| **Tatari** ($37M revenue, 337 people) | Streaming TV measurement | Wrong channel entirely |
+| **Recast GeoLift** ($100/mo, Sept 2025) | Geo-lift testing for digital DTC | Wrong ICP (DTC web, not retail media) |
+| **Triple Whale / Northbeam** | MTA + MMM for DTC e-comm | Don't handle Amazon/Walmart at all |
+| **`causal-lift` (this product)** | OSS retail media holdout workflow + managed services | Real, but unfunded and pre-revenue |
 
-**Causal-lift's positioning** sits in the gap: brands too small for Haus, too physical for Triple Whale, too non-technical for Robyn, too brand-spend-heavy for everything else.
-
-## The product layer
-
-The OSS library (`pip install causal-lift`) gives any technical user:
-
-- Regression-based MMM with auto-tuned adstock
-- Four safety gates that refuse confident-wrong answers
-- Multi-geo aggregation
-- Budget reallocation recommendations
-- CSV loaders for Shopify, Meta, Google
-
-**On top of that, the closed product layer is the geo-holdout workflow:**
-
-1. **Pre-experiment design** (`cl.design_geo_holdout`).
-   - Operator uploads 26 weeks of baseline revenue by DMA.
-   - Tool picks treated/control split optimising similarity.
-   - Reports statistical power at the operator's expected lift.
-   - Reports minimum detectable effect at 80% power.
-   - Suggests test duration if power is too low.
-
-2. **Experiment tracking.**
-   - Operator records the test launch in the dashboard.
-   - Tool tracks weekly revenue in treated and control DMAs.
-   - Mid-flight: flags if treated revenue diverges from expected counterfactual.
-
-3. **Post-experiment analysis** (`cl.analyze_geo_holdout`).
-   - Diff-in-diff with stationary bootstrap CI.
-   - Verdict: `LIFT_DETECTED` / `INCONCLUSIVE` / `NO_EFFECT` / `NEGATIVE_LIFT`.
-   - Implied iROAS on the spend change.
-   - One-paragraph rationale safe to put in a CMO slide.
-
-## What's shipped (v0.4.0, today)
-
-- ✅ `design_geo_holdout` — auto-selects treated DMAs, power calc, MDE reporting
-- ✅ `analyze_geo_holdout` — diff-in-diff with bootstrap CI, verdict logic, iROAS
-- ✅ End-to-end working example at `examples/billboard_holdout.py` recovering a 7% true lift as +7.6% measured (95% CI [+5.6%, +9.7%]) with implied 1.06x iROAS
-- ✅ 19 new tests covering both pre and post workflows
-- ✅ MIT-licensed library; full source on GitHub
-
-## What's still to build (v0.5+)
-
-- Mid-experiment monitoring (web app + email alerts)
-- Brand onboarding flow (connect Shopify, ad platforms, declare brand profile)
-- Automated experiment design from declared brand goals
-- Multi-channel experiment design (run TV holdout + podcast holdout simultaneously)
-- Synthetic control upgrade (Abadie-Diamond-Hainmueller) for unequal market sizes
-- Slack / email integrations for verdict delivery
+The strategic position: **we're the first product specifically built for SKU-level retail media incrementality at the mid-market price point.** Pacvue could ship this in 2 quarters but their installed base is bid management — they'd cannibalise their own product. Haus could ship this but their economics require $50K+ ACVs. Recast already shipped the wrong product (DTC geo, not retail SKU). That gap is the wedge.
 
 ## The pricing model
 
 | Tier | Price | What you get |
 |---|---|---|
 | **OSS** | Free | Full library, all features, MIT licence |
-| **Managed quarterly** | $5K / quarter | We run one experiment per quarter, deliver verdict + CMO memo |
-| **Embedded** | $5K / month | Continuous experiment tracking, monthly verdict dashboard, Slack alerts, 4 experiments/year |
-| **Custom** | $25K / quarter | Bespoke experiment design across multiple channels, CMO presentation |
+| **Managed quarterly** | $5K / quarter | We run one SKU holdout per quarter on Amazon or Walmart Connect, deliver verdict + brand manager memo |
+| **Embedded** | $5K / month | Continuous SKU portfolio measurement, monthly verdict dashboard, Slack alerts, 4 experiments per quarter |
+| **Multi-retailer** | $15K / month | Amazon + Walmart + Target + Instacart in one pane, cross-retailer arbitrage opportunity flags, quarterly CMO presentation |
 
-The OSS layer is what gets us in the door. The services layer is what brands actually pay for.
+At 10 brands on the $5K/month embedded tier = $600K ARR. At 40 brands = $2.4M ARR. Realistic 24-month target: $1M ARR with 15–25 customers.
+
+## What's shipped (v0.5.0, today)
+
+- ✅ `design_geo_holdout` — pre-experiment design with statistical power calc, works at SKU, geo, store, or any categorical unit
+- ✅ `analyze_geo_holdout` — post-experiment DiD with bootstrap CI, four-state verdict, implied iROAS
+- ✅ `loaders.load_amazon_ads_csv` — Sponsored Products / Sponsored Brands / Sponsored Display, ASIN-level or aggregated
+- ✅ `loaders.load_amazon_sales_csv` — Business Reports → Detail Page Sales by ASIN
+- ✅ `loaders.load_walmart_ads_csv` — Walmart Connect Ad Center exports
+- ✅ Plus all v0.4 capability: `RegressionMMM`, `GeoMMM`, safety gates, `recommend_reallocation`
+- ✅ End-to-end SKU holdout demo recovering known 8% lift exactly at p < 0.001
+- ✅ 89 tests, ruff clean, CI green on Python 3.9–3.12
+
+## What's still to build
+
+| Gap | Cost | Notes |
+|---|---|---|
+| Direct API integrations (Amazon Ads, Walmart Connect, Instacart) | 4–6 months | OAuth + rate limiting + data normalization. Funnel.io is the comparable for difficulty. |
+| Cross-retailer aggregation pane | 2 months | Once 3+ integrations live |
+| Hosted experiment-tracking dashboard | 3 months | React + FastAPI; foundation in `playground/` |
+| Brand onboarding flow | 1 month | Must be <60 min start-to-first-result |
+| Sales motion + outbound playbook | Ongoing | Likely needs a co-founder hire from CPG ad ops |
+| Co-founder: CPG retail media operator | Equity hire | Brand-side credibility is the trust gap |
 
 ## Why this works
 
-1. The market is real ($110B/year of physical media has zero good measurement).
-2. The competition is bimodal — too expensive (Haus, $50K) or wrong shape (Tatari single-channel, Triple Whale digital-only).
-3. The OSS wedge gives operators a way to evaluate us before paying anything.
-4. The honest brand position (we say `INCONCLUSIVE`) is itself the marketing.
-5. Mid-market brands are underserved enough that warm intros (Dartmouth network, Twitter, podcast appearances) can fill the pipeline for the first 12 months.
+1. **Market is provably real** ($50B+ category, 25% YoY growth, every brand-side ad ops team has the pain).
+2. **Competition is bimodal** — too expensive (Haus, Tatari, $50K+) or wrong shape (Pacvue is bidding-not-measurement, Recast is DTC-not-retail-media).
+3. **Integration moat is concrete** — 60+ retail media networks, each a slow grinding integration. Patient builder wins.
+4. **OSS wedge gives prospects a free way to evaluate before paying.** Self-serve evaluation + managed delivery is the right combination for this category.
+5. **The honest brand position** (`INCONCLUSIVE` label when the data can't support a confident answer) is itself the marketing in a category where every other vendor's number sounds invented.
 
-## What I need from the founder
+## The 30-day validation plan
 
-- The first 5 paying customers (warm intros, $5K-$25K each).
-- A co-founder or first hire with brand-side media buying experience.
-- $200K-$1M of seed runway (self-funded from services, or a friends-and-family round).
+Before writing more code, the founder is committing 30 days to validating the wedge with paying customers:
+
+1. **Week 1:** 10 interviews with brand-side ad ops at $50–500M CPG brands. Specific question: *"Walk me through the last time you tried to figure out if Amazon Ads was incremental on a SKU. What did you actually do? Would you pay $5K/month for a tool that did it credibly?"*
+2. **Week 2:** Buy Pacvue or Helium 10 for $300 each. Run a SKU holdout for a friendly brand using only their tools. Document where they fail.
+3. **Week 3:** Get one paid pilot ($2K minimum) from your network. Deliver a SKU holdout analysis in 7 days.
+4. **Week 4:** If the pilot lands and the brand says "I want this every quarter," raise a $750K pre-seed and commit. If not, run the playbook on a different ICP (Walmart-first instead of Amazon-first, or supplements instead of beverage).
+
+The 30-day exit criterion: **one signed managed engagement at $5K+ from an outbound conversation, not a friend.** That's the only signal that justifies committing the next 18 months.
+
+## What I need
+
+- **The first 5 paying brands** — warm intros via Dartmouth network, X, podcast appearances, cold outbound
+- **A co-founder with CPG retail media operator experience** — non-negotiable for $5K/month embedded sales
+- **$500K–$1M pre-seed in 6 months** (or self-fund from initial services)
 
 ## What success looks like
 
-- **Month 6:** 3 paying brands, $50K-$100K of services revenue, 2 case studies with named clients
-- **Month 12:** 8 brands, $250K-$500K revenue, hosted experiment dashboard live
-- **Month 24:** 20 brands, $1.5M ARR, ready to raise a seed round if the pattern is replicating
-- **Month 60:** $10-30M ARR, the default OSS choice for physical-media measurement, defensible against incumbents
+- **Month 6:** 3 paying brands, $30–60K MRR, 2 case studies with named clients
+- **Month 12:** 8 brands, $30K MRR, hosted experiment dashboard live, Amazon Ads API integration shipped
+- **Month 24:** 20 brands, $80–120K MRR, ready to raise a Series A on retail media measurement category leadership
+- **Month 60:** $5–15M ARR, the default OSS choice for retail media incrementality, defensible against Pacvue trying to expand into measurement
 
 This is the company.

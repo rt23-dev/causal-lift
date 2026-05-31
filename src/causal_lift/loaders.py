@@ -258,7 +258,234 @@ def _count_google_preamble_rows(source: PathOrBuffer) -> int:
     return 0
 
 
-# ── Live API stubs (v0.4 target) ───────────────────────────────────────────────
+# ── Amazon Ads (Sponsored Products / Sponsored Brands) ────────────────────────
+
+# Amazon Advertising Console "Reports → Custom report" CSV columns.
+# Casing matches what the console exports for performance reports.
+AMAZON_DATE_COLS = ("Date", "Start Date", "Day")
+AMAZON_CAMPAIGN_COL = "Campaign Name"
+AMAZON_AD_GROUP_COL = "Ad Group Name"
+AMAZON_ASIN_COL = "Advertised ASIN"   # falls back to ASIN, SKU
+AMAZON_ASIN_FALLBACKS = ("ASIN", "Advertised SKU", "SKU")
+AMAZON_SPEND_COL = "Spend"
+AMAZON_SPEND_FALLBACKS = ("Cost", "Total Spend", "Ad Spend")
+AMAZON_SALES_COL = "Sales"             # 7-day attributed sales (the inflated number)
+AMAZON_SALES_FALLBACKS = ("7 Day Total Sales", "Attributed Sales 7d", "Total Sales")
+
+
+def load_amazon_ads_csv(
+    source: PathOrBuffer,
+    group_by: str = "day",
+    sku_aware: bool = False,
+    channel_prefix: str = "amazon",
+) -> pd.DataFrame:
+    """
+    Load an Amazon Advertising Console report (Sponsored Products /
+    Sponsored Brands / Sponsored Display).
+
+    Retail-media spend is best analysed at the **ASIN level** because
+    incrementality varies enormously per SKU.  By default each ASIN
+    becomes its own ``channel`` (so the analyser can compute per-SKU
+    iROAS), but you can collapse to a single "amazon" channel by
+    passing ``group_by='day'`` and ``sku_aware=False``.
+
+    Parameters
+    ----------
+    source : path or file-like
+        CSV export from Amazon Advertising Console → Reports.
+    group_by : {"day", "campaign", "asin"}, default "day"
+        - ``"day"``: one row per date, all spend collapsed to ``channel_prefix``.
+        - ``"campaign"``: one row per (date, campaign).
+        - ``"asin"``: one row per (date, ASIN) — the canonical retail-media shape.
+    sku_aware : bool, default False
+        If True, prefix every channel with the ASIN (overrides ``group_by``).
+        Useful for downstream SKU-level holdout analysis.
+    channel_prefix : str
+        Base label when collapsing across products.
+
+    Returns
+    -------
+    pandas.DataFrame  with columns ``date``, ``channel``, ``spend``.
+    """
+    df = pd.read_csv(source)
+    date_col = next((c for c in AMAZON_DATE_COLS if c in df.columns), None)
+    if date_col is None:
+        raise ValueError(
+            f"Amazon Ads CSV missing a date column. Tried: {AMAZON_DATE_COLS}"
+        )
+    sp_col = next(
+        (c for c in (AMAZON_SPEND_COL, *AMAZON_SPEND_FALLBACKS) if c in df.columns),
+        None,
+    )
+    if sp_col is None:
+        raise ValueError(
+            f"Amazon Ads CSV missing a spend column. Tried: "
+            f"{(AMAZON_SPEND_COL, *AMAZON_SPEND_FALLBACKS)}"
+        )
+
+    df["date"] = pd.to_datetime(df[date_col], errors="coerce")
+    df[sp_col] = pd.to_numeric(df[sp_col], errors="coerce").fillna(0)
+
+    if sku_aware or group_by == "asin":
+        asin_col = next(
+            (c for c in (AMAZON_ASIN_COL, *AMAZON_ASIN_FALLBACKS) if c in df.columns),
+            None,
+        )
+        if asin_col is None:
+            raise ValueError(
+                "ASIN-level grouping requires an ASIN or SKU column. "
+                f"Tried: {(AMAZON_ASIN_COL, *AMAZON_ASIN_FALLBACKS)}"
+            )
+        out = df.groupby(["date", asin_col], as_index=False)[sp_col].sum()
+        out["channel"] = channel_prefix + "_" + out[asin_col].astype(str)
+        out = out.rename(columns={sp_col: "spend"})[["date", "channel", "spend"]]
+    elif group_by == "campaign":
+        if AMAZON_CAMPAIGN_COL not in df.columns:
+            raise ValueError(
+                f"group_by='campaign' requires column {AMAZON_CAMPAIGN_COL!r}"
+            )
+        out = df.groupby(["date", AMAZON_CAMPAIGN_COL], as_index=False)[sp_col].sum()
+        out = out.rename(columns={AMAZON_CAMPAIGN_COL: "channel", sp_col: "spend"})
+    else:
+        out = df.groupby("date", as_index=False)[sp_col].sum()
+        out["channel"] = channel_prefix
+        out = out.rename(columns={sp_col: "spend"})[["date", "channel", "spend"]]
+
+    return out.dropna(subset=["date"]).sort_values("date").reset_index(drop=True)
+
+
+def load_amazon_sales_csv(
+    source: PathOrBuffer,
+    sales_col: str | None = None,
+    sku_column: str = "asin",
+) -> pd.DataFrame:
+    """
+    Load Amazon Business Reports → Detail Page Sales and Traffic by ASIN.
+
+    Returns one row per (date, asin) with total ordered product sales.
+    This is the *organic + paid* number — when joined to spend data and
+    fed into causal-lift, the model separates the causal paid contribution.
+
+    Parameters
+    ----------
+    source : path or file-like
+    sales_col : str, optional
+        Override the sales column name (defaults to first hit in
+        :data:`AMAZON_SALES_FALLBACKS`).
+    sku_column : str, default "asin"
+        Name to use for the per-SKU column in the output.
+
+    Returns
+    -------
+    pandas.DataFrame  with columns ``date``, ``sku_column`` (default "asin"),
+    ``revenue``.
+    """
+    df = pd.read_csv(source)
+    date_col = next((c for c in AMAZON_DATE_COLS if c in df.columns), None)
+    if date_col is None:
+        raise ValueError(f"Amazon Sales CSV missing a date column from {AMAZON_DATE_COLS}")
+    sl_col = sales_col or next(
+        (c for c in (AMAZON_SALES_COL, *AMAZON_SALES_FALLBACKS) if c in df.columns),
+        None,
+    )
+    if sl_col is None:
+        raise ValueError(
+            f"Amazon Sales CSV missing a sales column. Tried: "
+            f"{(AMAZON_SALES_COL, *AMAZON_SALES_FALLBACKS)}"
+        )
+
+    asin_col = next(
+        (c for c in (AMAZON_ASIN_COL, *AMAZON_ASIN_FALLBACKS) if c in df.columns),
+        None,
+    )
+    if asin_col is None:
+        raise ValueError(
+            f"Amazon Sales CSV missing an ASIN/SKU column. Tried: "
+            f"{(AMAZON_ASIN_COL, *AMAZON_ASIN_FALLBACKS)}"
+        )
+
+    df["date"] = pd.to_datetime(df[date_col], errors="coerce")
+    df[sl_col] = pd.to_numeric(df[sl_col], errors="coerce").fillna(0)
+    out = df.groupby(["date", asin_col], as_index=False)[sl_col].sum()
+    out = out.rename(columns={asin_col: sku_column, sl_col: "revenue"})
+    return out.dropna(subset=["date"]).sort_values("date").reset_index(drop=True)
+
+
+# ── Walmart Connect ────────────────────────────────────────────────────────────
+
+# Walmart Connect Ad Center export columns.
+WALMART_DATE_COLS = ("Date", "Day")
+WALMART_CAMPAIGN_COL = "Campaign Name"
+WALMART_ITEM_COL = "Item ID"
+WALMART_ITEM_FALLBACKS = ("Walmart Item ID", "WPID", "Product ID")
+WALMART_SPEND_COL = "Ad Spend"
+WALMART_SPEND_FALLBACKS = ("Spend", "Cost")
+WALMART_SALES_COL = "Attributed Sales"
+WALMART_SALES_FALLBACKS = ("Sales", "Total Sales")
+
+
+def load_walmart_ads_csv(
+    source: PathOrBuffer,
+    group_by: str = "day",
+    channel_name: str = "walmart_connect",
+) -> pd.DataFrame:
+    """
+    Load a Walmart Connect Ad Center performance export.
+
+    Parameters mirror :func:`load_amazon_ads_csv`.  Walmart's item-level
+    reporting (``group_by="item"``) is the equivalent of ASIN-level on
+    Amazon.
+
+    Returns
+    -------
+    pandas.DataFrame  with columns ``date``, ``channel``, ``spend``.
+    """
+    df = pd.read_csv(source)
+    date_col = next((c for c in WALMART_DATE_COLS if c in df.columns), None)
+    if date_col is None:
+        raise ValueError(f"Walmart Ads CSV missing a date column from {WALMART_DATE_COLS}")
+    sp_col = next(
+        (c for c in (WALMART_SPEND_COL, *WALMART_SPEND_FALLBACKS) if c in df.columns),
+        None,
+    )
+    if sp_col is None:
+        raise ValueError(
+            f"Walmart Ads CSV missing a spend column. Tried: "
+            f"{(WALMART_SPEND_COL, *WALMART_SPEND_FALLBACKS)}"
+        )
+
+    df["date"] = pd.to_datetime(df[date_col], errors="coerce")
+    df[sp_col] = pd.to_numeric(df[sp_col], errors="coerce").fillna(0)
+
+    if group_by == "item":
+        item_col = next(
+            (c for c in (WALMART_ITEM_COL, *WALMART_ITEM_FALLBACKS) if c in df.columns),
+            None,
+        )
+        if item_col is None:
+            raise ValueError(
+                f"Item-level grouping requires an Item ID column. Tried: "
+                f"{(WALMART_ITEM_COL, *WALMART_ITEM_FALLBACKS)}"
+            )
+        out = df.groupby(["date", item_col], as_index=False)[sp_col].sum()
+        out["channel"] = f"{channel_name}_" + out[item_col].astype(str)
+        out = out.rename(columns={sp_col: "spend"})[["date", "channel", "spend"]]
+    elif group_by == "campaign":
+        if WALMART_CAMPAIGN_COL not in df.columns:
+            raise ValueError(
+                f"group_by='campaign' requires column {WALMART_CAMPAIGN_COL!r}"
+            )
+        out = df.groupby(["date", WALMART_CAMPAIGN_COL], as_index=False)[sp_col].sum()
+        out = out.rename(columns={WALMART_CAMPAIGN_COL: "channel", sp_col: "spend"})
+    else:
+        out = df.groupby("date", as_index=False)[sp_col].sum()
+        out["channel"] = channel_name
+        out = out.rename(columns={sp_col: "spend"})[["date", "channel", "spend"]]
+
+    return out.dropna(subset=["date"]).sort_values("date").reset_index(drop=True)
+
+
+# ── Live API stubs (v0.5 target) ───────────────────────────────────────────────
 
 def fetch_shopify_orders_api(*_args, **_kwargs) -> pd.DataFrame:
     """Placeholder — direct Shopify REST API integration is v0.4 work."""

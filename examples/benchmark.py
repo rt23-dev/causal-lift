@@ -35,7 +35,7 @@ import pandas as pd
 
 warnings.filterwarnings("ignore")
 
-import causal_lift as cl
+import causal_lift as cl  # noqa: E402
 
 REPO = Path(__file__).resolve().parents[1]
 OUT = REPO / "examples" / "benchmark_results"
@@ -128,7 +128,7 @@ def headline(df: pd.DataFrame) -> tuple[cl.AnalysisResult, list[dict]]:
         attributed_rev = share * total_rev
         last_touch_roas = attributed_rev / df[ch].sum() if df[ch].sum() else np.nan
         # (b) single-channel OLS (revenue ~ const + spend_ch)
-        X = sm.add_constant(df[ch].values.astype(float))
+        X = sm.add_constant(df[ch].values.astype(float))  # noqa: N806
         m = sm.OLS(df["revenue"].values.astype(float), X).fit()
         bivar_iroas = float(m.params[1])
         # causal-lift estimate
